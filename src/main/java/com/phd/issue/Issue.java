@@ -28,17 +28,45 @@ public class Issue {
     private Integer comments;
     private String createdAt;
     private String updatedAt;
-    private Object closedAt;
+    private String closedAt;
     private String authorAssociation;
     private Object activeLockReason;
-
+    private String processedBody;
     private String body;
-
     private Object closedBy;
-
     private Object performedViaGithubApp;
-
+    private long timeTakenToFix;
     private Map<String, Object> additionalProperties = new HashMap<String, Object>();
+
+    public long getTimeTakenToFix() {
+        return timeTakenToFix;
+    }
+
+    public void setTimeTakenToFix(long timeTakenToFix) {
+        this.timeTakenToFix = timeTakenToFix;
+    }
+
+
+
+    public String getProcessedTitle() {
+        return processedTitle;
+    }
+
+    public void setProcessedTitle(String processedTitle) {
+        this.processedTitle = processedTitle;
+    }
+
+    private String processedTitle;
+
+    public String getProcessedBody() {
+        return processedBody;
+    }
+
+    public void setProcessedBody(String processedBody) {
+        this.processedBody = processedBody;
+    }
+
+
 
     public String getUrl() {
         return url;
@@ -227,12 +255,12 @@ public class Issue {
     }
 
 
-    public Object getClosedAt() {
+    public String getClosedAt() {
         return closedAt;
     }
 
 
-    public void setClosedAt(Object closedAt) {
+    public void setClosedAt(String closedAt) {
         this.closedAt = closedAt;
     }
 

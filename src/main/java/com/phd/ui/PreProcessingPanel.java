@@ -1,32 +1,30 @@
 package com.phd.ui;
 
 import com.phd.config.Configuration;
+import com.phd.data.preprocess.DataPrePorcessingAndValiadtion;
 import com.phd.db.DBManager;
-import com.phd.issue.FetchData;
+import com.phd.domain.CodeChanges;
+import com.phd.domain.Comments;
+import com.phd.issue.Issue;
 
 import javax.swing.*;
-import javax.swing.plaf.basic.BasicBorders;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.io.File;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.time.temporal.ChronoUnit;
+import java.util.Date;
+import java.util.List;
 
 public class PreProcessingPanel extends JPanel {
 
-
-
-
-
-
-
-
-
-    static JButton loadConfiguration;
+    static JButton performDataPreProcessingButton;
     static JFrame f;
     static JProgressBar progressBar;
     static JLabel progress =null;
+    static SimpleDateFormat formatter = new SimpleDateFormat(
+            "EEEE, dd/MM/yyyy/hh:mm:ss");
 
     public PreProcessingPanel(JTabbedPane tp, final Configuration config) {
 
@@ -118,8 +116,8 @@ public class PreProcessingPanel extends JPanel {
 
         c1.gridx =0;
         c1.gridy =7;
-        loadConfiguration = new JButton("Perform Database PreProcessing & Validation");
-        configurationPanel.add(loadConfiguration,c1);
+        performDataPreProcessingButton = new JButton("Perform Database PreProcessing & Validation");
+        configurationPanel.add(performDataPreProcessingButton,c1);
 
 
         c1.gridx =0;
@@ -137,7 +135,7 @@ public class PreProcessingPanel extends JPanel {
 
 
         tp.add("Database PreProcessing & Validation", this);
-        createActionListener(loadConfiguration);
+        createActionListener(performDataPreProcessingButton);
 
     }
 
@@ -156,28 +154,103 @@ public class PreProcessingPanel extends JPanel {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                int i = 10;
-                try {
-                    while (i <= 100) {
-                        // fill the menu bar
 
-                        progressBar.setString("1-----------Stop Word Removal");
-                        progressBar.setValue(i);
-
-                        // delay the thread
-                        Thread.sleep(100);
-                        i += 1;
-                        if(i==30){
-                            System.out.println("");
-                        }
-                    }
-                }
-                catch (Exception e) {
-                }
+                processDataValidationForComments();
+                processDataValidationForIssues();
+                processDataValidationForCodeChanges();
 
             }
         }).start();
 
+    }
+
+    private static void processDataValidationForCodeChanges() {
+        int i = 10;
+        int j=0;
+        //Get all the comments from the Comment Table and remove the Stop Words
+        List<CodeChanges> listOfCodeChanges = DBManager.getListOfCodeChanges();
+        try {
+            while (j < listOfCodeChanges.size()) {
+
+                CodeChanges codeChanges = listOfCodeChanges.get(j);
+                DataPrePorcessingAndValiadtion.processCodeChanges(codeChanges);
+                i += 1;
+                j +=1;
+                if(i ==30){
+                    System.out.println("");
+                }
+                // fill the menu bar
+                progressBar.setValue(i);
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    public static long betweenDates(Date firstDate, Date secondDate) throws IOException
+    {
+        return ChronoUnit.DAYS.between(firstDate.toInstant(), secondDate.toInstant());
+    }
+
+    private static void processDataValidationForIssues() {
+        progressBar.setString("----Database PreProcessing & Validation For Issues-----");
+        int i = 10;
+        int j=0;
+        /*  1- Get all the Issues from the Issue Table
+            2- Remove the Stop Words and update the processed data in the table
+            3-Enrich the Issue Table, populate the total time
+         */
+        List<Issue> listOfIssue = DBManager.getListOfIssues();
+        try {
+            while (j < listOfIssue.size()) {
+
+                Issue issue = listOfIssue.get(j);
+                Date openDate = formatter.parse(issue.getCreatedAt());
+                Date closeDate = formatter.parse(issue.getClosedAt());
+                long timeTaken = betweenDates(closeDate, openDate);
+                issue.setTimeTakenToFix(timeTaken);
+                issue.setProcessedTitle(DataPrePorcessingAndValiadtion.removeStopWordsFromString(issue.getTitle()));
+                issue.setProcessedBody(DataPrePorcessingAndValiadtion.removeStopWordsFromString(issue.getBody()));
+                DBManager.updateIssue(issue);
+                i += 1;
+                j +=1;
+                if(i ==30){
+                    System.out.println("");
+                }
+                // fill the menu bar
+                progressBar.setValue(i);
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void processDataValidationForComments() {
+        int i = 10;
+        int j=0;
+        //Get all the comments from the Comment Table and remove the Stop Words
+        List<Comments> listOfComments = DBManager.getListOfComments();
+        try {
+            while (j < listOfComments.size()) {
+
+                Comments comments = listOfComments.get(j);
+                comments.setProcessedComments(DataPrePorcessingAndValiadtion.removeStopWordsFromString(comments.getComment()));
+                DBManager.updateComment(comments);
+                i += 1;
+                j +=1;
+                if(i ==30){
+                    System.out.println("");
+                }
+                // fill the menu bar
+                progressBar.setValue(i);
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private static void setConfiguration() {

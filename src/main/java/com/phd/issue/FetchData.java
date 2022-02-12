@@ -25,7 +25,8 @@ public class FetchData  extends Thread {
         Connection conn=null;
         try {
             conn = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
-            GitHub github = new GitHubBuilder().withOAuthToken(Configuration.getConfig().getAccessToken()).build();
+           // GitHub github = new GitHubBuilder().withOAuthToken(Configuration.getConfig().getAccessToken()).build();
+            GitHub github = new GitHubBuilder().build();
             GHRepository repo = github.getRepository(Configuration.getConfig().getRepoName());
             for(int issueNo=Configuration.getConfig().getRecordFrom(); issueNo<=Configuration.getConfig().getRecordTo();issueNo++) {
                 processIssue(conn, repo,issueNo);
