@@ -11,11 +11,11 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 public class PreProcessingPanel extends JPanel {
 
@@ -23,10 +23,10 @@ public class PreProcessingPanel extends JPanel {
     static JFrame f;
     static JProgressBar progressBar;
     static JLabel progress =null;
-    static SimpleDateFormat formatter = new SimpleDateFormat(
-            "EEEE, dd/MM/yyyy/hh:mm:ss");
+    static boolean progressFlag =false;
+    static SimpleDateFormat formatter = new SimpleDateFormat("E MMM dd HH:mm:ss Z yyyy");
 
-    public PreProcessingPanel(JTabbedPane tp, final Configuration config) {
+    public PreProcessingPanel(JTabbedPane tp, Configuration config) {
 
         f = new JFrame();
         progress = new JLabel();
@@ -151,21 +151,46 @@ public class PreProcessingPanel extends JPanel {
     // function to increase progress
     public static void fill()
     {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
+        SwingWorker sw1 = new SwingWorker()
+        {
 
+            @Override
+            protected String doInBackground() throws Exception
+            {
+                publish(20);
                 processDataValidationForComments();
+                publish(40);
                 processDataValidationForIssues();
+                publish(60);
                 processDataValidationForCodeChanges();
+                publish(90);
+                return null;
+            }
+
+            @Override
+            protected void process(List chunks)
+            {
+                int val = (int) chunks.get(chunks.size()-1);
+                progressBar.setValue(val);
 
             }
-        }).start();
+
+            @Override
+            protected void done()
+            {
+                // this method is called when the background
+                // thread finishes execution
+                progressBar.setValue(100);
+
+            }
+        };
+
+        // executes the swingworker on worker thread
+        sw1.execute();
 
     }
 
     private static void processDataValidationForCodeChanges() {
-        int i = 10;
         int j=0;
         //Get all the comments from the Comment Table and remove the Stop Words
         List<CodeChanges> listOfCodeChanges = DBManager.getListOfCodeChanges();
@@ -174,29 +199,20 @@ public class PreProcessingPanel extends JPanel {
 
                 CodeChanges codeChanges = listOfCodeChanges.get(j);
                 DataPrePorcessingAndValiadtion.processCodeChanges(codeChanges);
-                i += 1;
-                j +=1;
-                if(i ==30){
-                    System.out.println("");
-                }
-                // fill the menu bar
-                progressBar.setValue(i);
+                   j +=1;
             }
         }
         catch (Exception e) {
             e.printStackTrace();
         }
-
     }
 
-    public static long betweenDates(Date firstDate, Date secondDate) throws IOException
+    public static long betweenDates(Date firstDate, Date secondDate)
     {
         return ChronoUnit.DAYS.between(firstDate.toInstant(), secondDate.toInstant());
     }
 
     private static void processDataValidationForIssues() {
-        progressBar.setString("----Database PreProcessing & Validation For Issues-----");
-        int i = 10;
         int j=0;
         /*  1- Get all the Issues from the Issue Table
             2- Remove the Stop Words and update the processed data in the table
@@ -209,18 +225,12 @@ public class PreProcessingPanel extends JPanel {
                 Issue issue = listOfIssue.get(j);
                 Date openDate = formatter.parse(issue.getCreatedAt());
                 Date closeDate = formatter.parse(issue.getClosedAt());
-                long timeTaken = betweenDates(closeDate, openDate);
+                long timeTaken = betweenDates(openDate, closeDate);
                 issue.setTimeTakenToFix(timeTaken);
                 issue.setProcessedTitle(DataPrePorcessingAndValiadtion.removeStopWordsFromString(issue.getTitle()));
                 issue.setProcessedBody(DataPrePorcessingAndValiadtion.removeStopWordsFromString(issue.getBody()));
                 DBManager.updateIssue(issue);
-                i += 1;
                 j +=1;
-                if(i ==30){
-                    System.out.println("");
-                }
-                // fill the menu bar
-                progressBar.setValue(i);
             }
         }
         catch (Exception e) {
@@ -229,40 +239,22 @@ public class PreProcessingPanel extends JPanel {
     }
 
     private static void processDataValidationForComments() {
-        int i = 10;
-        int j=0;
+       int j=0;
         //Get all the comments from the Comment Table and remove the Stop Words
         List<Comments> listOfComments = DBManager.getListOfComments();
         try {
             while (j < listOfComments.size()) {
-
                 Comments comments = listOfComments.get(j);
                 comments.setProcessedComments(DataPrePorcessingAndValiadtion.removeStopWordsFromString(comments.getComment()));
                 DBManager.updateComment(comments);
-                i += 1;
                 j +=1;
-                if(i ==30){
-                    System.out.println("");
-                }
-                // fill the menu bar
-                progressBar.setValue(i);
+
             }
         }
         catch (Exception e) {
             e.printStackTrace();
         }
     }
-
-    private static void setConfiguration() {
-
-
-    }
-
-    private static boolean isConfigurationValidForLoad(Configuration config) {
-        return true;
-    }
-
-
 
     public void repaint() {
 
