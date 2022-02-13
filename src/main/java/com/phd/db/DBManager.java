@@ -1,6 +1,7 @@
 package com.phd.db;
 
 import com.phd.config.Configuration;
+import com.phd.domain.CodeChangeDetails;
 import com.phd.domain.CodeChanges;
 import com.phd.domain.Comments;
 import com.phd.issue.FetchData;
@@ -95,7 +96,7 @@ public class DBManager {
 
     public static void insertCodeChanges(GHIssue issue, Connection conn, String codeChange) {
 
-        String sql = "INSERT INTO CODE_CHANGE(ISSUE_ID, CHANGES) VALUES(?,?)";
+        String sql = "INSERT INTO CODE(ISSUE_ID, CHANGES) VALUES(?,?)";
         //Get Author who has written or updated this code
 
         try {
@@ -274,7 +275,7 @@ public class DBManager {
     public static List<Issue> getListOfIssues() {
         Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
         List<Issue> issueList = new ArrayList<Issue>();
-        String query = "SELECT ISSUE_ID,TITLE, BODY FROM ISSUE";
+        String query = "SELECT ISSUE_ID,TITLE, BODY, OPEN_DATE, CLOSE_DATE FROM ISSUE";
         Statement stmt = null;
         ResultSet rs = null;
         System.out.println(query);
@@ -289,6 +290,8 @@ public class DBManager {
                 issue.setId(rs.getInt("ISSUE_ID"));
                 issue.setTitle(rs.getString(("TITLE")));
                 issue.setBody(rs.getString("BODY"));
+                issue.setCreatedAt(rs.getString("OPEN_DATE"));
+                issue.setClosedAt(rs.getString("CLOSE_DATE"));
                 issueList.add(issue);
             }
         } catch (SQLException e) {
@@ -341,7 +344,131 @@ public class DBManager {
     }
 
     public static List<CodeChanges> getListOfCodeChanges() {
-        return null;
+        Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
+        List<CodeChanges> codeChanges = new ArrayList<CodeChanges>();
+        String query = "SELECT ISSUE_ID,CHANGES FROM CODE";
+        Statement stmt = null;
+        ResultSet rs = null;
+        System.out.println(query);
+        try {
+            stmt = con.createStatement();
+            rs = stmt.executeQuery(query);
+
+            // loop through the result set
+
+            while (rs.next()) {
+                CodeChanges codeChange = new CodeChanges();
+                codeChange.setCodeChange(rs.getString("CHANGES"));
+                codeChange.setIssueId(rs.getInt(("ISSUE_ID")));
+                codeChanges.add(codeChange);
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        } finally {
+            try {
+                rs.close();
+                stmt.close();
+                com.phd.db.Connect.closeConnection(con);
+            } catch (SQLException throwables) {
+                throwables.printStackTrace();
+            }
+        }
+        return codeChanges;
+    }
+
+    public static void insertAuthor(Map<Integer, String> authorMap) throws SQLException  {
+        Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
+
+        String sql = "INSERT INTO AUTHORS (ISSUE_ID, NAME ) VALUES(?,?)";
+        PreparedStatement pstmt = null;
+
+        try {
+            for (Map.Entry mapElement : authorMap.entrySet()) {
+                Integer id = (Integer)mapElement.getKey();
+                String name = (String) authorMap.get(id);
+                pstmt = con.prepareStatement(sql);
+                pstmt.setInt(1, id);
+                pstmt.setString(2, name);
+                pstmt.executeUpdate();
+
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        } finally {
+            pstmt.close();
+        }
+    }
+
+
+    public static void insertPackageDetails(Map<Integer, String> packageMap) throws SQLException {
+        Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
+
+        String sql = "INSERT INTO PACKAGES (ISSUE_ID, NAME ) VALUES(?,?)";
+        PreparedStatement pstmt = null;
+
+        try {
+            for (Map.Entry mapElement : packageMap.entrySet()) {
+                Integer id = (Integer)mapElement.getKey();
+                String name = (String) packageMap.get(id);
+                pstmt = con.prepareStatement(sql);
+                pstmt.setInt(1, id);
+                pstmt.setString(2, name);
+                pstmt.executeUpdate();
+
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        } finally {
+            pstmt.close();
+        }
+    }
+
+    public static void insertCodeChangeDetails(CodeChangeDetails codeDetails) throws SQLException {
+        Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
+        String sql = "INSERT INTO CODE_DETAILS (ISSUE_ID, NO_OF_CLASSES, NO_OF_LINES, NO_OF_AUTHORS, COMPLEXITY ) VALUES(?,?,?,?,?)";
+        PreparedStatement pstmt = null;
+        try {
+            Integer id = codeDetails.getIssueId();
+            Integer noOfClasses = codeDetails.getNoOfClass();
+            Integer noOfLines = codeDetails.getNoOfLines();
+            Integer noOfAuthors = codeDetails.getNoOfAuthors();
+            Integer complexity = codeDetails.getChangeComplexity();
+            pstmt = con.prepareStatement(sql);
+            pstmt.setInt(1, id);
+            pstmt.setInt(2, noOfClasses);
+            pstmt.setInt(3, noOfLines);
+            pstmt.setInt(4, noOfAuthors);
+            pstmt.setInt(5, complexity);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        } finally {
+            pstmt.close();
+        }
+
+    }
+
+    public static void insertClassDetails(Map<Integer, String> classMap) throws  SQLException {
+        Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
+
+        String sql = "INSERT INTO CLASSES (ISSUE_ID, NAME ) VALUES(?,?)";
+        PreparedStatement pstmt = null;
+
+        try {
+            for (Map.Entry mapElement : classMap.entrySet()) {
+                Integer id = (Integer)mapElement.getKey();
+                String name = (String) classMap.get(id);
+                pstmt = con.prepareStatement(sql);
+                pstmt.setInt(1, id);
+                pstmt.setString(2, name);
+                pstmt.executeUpdate();
+
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        } finally {
+            pstmt.close();
+        }
     }
 }
 

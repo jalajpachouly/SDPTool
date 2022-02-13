@@ -14,7 +14,8 @@ import java.awt.event.MouseEvent;
 import java.io.File;
 
 public class ConfigurationPanel {
-    static JButton createDataSet;
+    public static JButton createDataSet;
+    public static JProgressBar progressBar;
     static JTextArea repoField;
     static JTextArea recordFromField;
     static JTextArea recordToField;
@@ -166,6 +167,15 @@ public class ConfigurationPanel {
         createDataSet.setBackground(Color.CYAN);
 
 
+        c1.gridx =3;
+        c1.gridy =7;
+        progressBar =  new JProgressBar();
+        progressBar.setPreferredSize( new Dimension (300, 30));
+        progressBar.setStringPainted(true);
+        buttonPanel.add(progressBar,c1);
+        createDataSet.setBackground(Color.CYAN);
+
+
         loadConfiguration.setSize(createDataSet.getSize());
         saveConfiguration.setSize(createDataSet.getSize());
 
@@ -228,6 +238,8 @@ public class ConfigurationPanel {
         repoField.setText(config.getRepoName());
         sslUsage.setSelected(config.isUseHttps());
         certUsage.setSelected(config.isValidateServeCertificate());
+        recordFromField.setText(Integer.toString(config.getRecordFrom()));
+        recordToField.setText(Integer.toString(config.getRecordTo()));
 
     }
 

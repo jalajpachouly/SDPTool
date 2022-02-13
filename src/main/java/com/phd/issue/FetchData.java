@@ -6,9 +6,11 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.sql.Connection;
+import java.util.List;
 
 import com.phd.config.Configuration;
 import com.phd.db.DBManager;
+import com.phd.ui.ConfigurationPanel;
 import com.phd.ui.Home;
 import org.kohsuke.github.*;
 
@@ -17,8 +19,9 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import javax.security.cert.X509Certificate;
+import javax.swing.*;
 
-public class FetchData  extends Thread {
+public class FetchData  {
 
     public static void getData() throws Exception {
         disableSSLCertificateChecking();
@@ -89,11 +92,60 @@ public class FetchData  extends Thread {
 
 
 
-    @Override
-    public void run() {
+
+    public void start() {
         try {
-            getData();
-            Home.getCreateDataSet().setBackground(Color.CYAN);
+            SwingWorker sw1 = new SwingWorker()
+            {
+                @Override
+                protected String doInBackground() throws Exception
+                {
+                    int totalRecordToFetch = Configuration.getConfig().getRecordTo() -Configuration.getConfig().getRecordFrom();
+                    int recordProgressCounter = 0;
+                    disableSSLCertificateChecking();
+                    Connection conn=null;
+                    try {
+                        conn = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
+                        GitHub github = new GitHubBuilder().withOAuthToken(Configuration.getConfig().getAccessToken()).build();
+                       // GitHub github = new GitHubBuilder().build();
+                        GHRepository repo = github.getRepository(Configuration.getConfig().getRepoName());
+                        for(int issueNo=Configuration.getConfig().getRecordFrom(); issueNo<=Configuration.getConfig().getRecordTo();issueNo++) {
+                            processIssue(conn, repo,issueNo);
+                            recordProgressCounter++;
+                            publish(100*recordProgressCounter/totalRecordToFetch);
+                        }
+                    }
+                    catch(Exception ex){
+                        handleDataException(ex);
+                    }
+                    finally {
+                        com.phd.db.Connect.closeConnection(conn);
+                    }
+                    return null;
+                }
+
+                @Override
+                protected void process(List chunks)
+                {
+                    int val = (int) chunks.get(chunks.size()-1);
+                    ConfigurationPanel.progressBar.setValue(val);
+
+                }
+
+                @Override
+                protected void done()
+                {
+                    // this method is called when the background
+                    // thread finishes execution
+                    ConfigurationPanel.progressBar.setValue(100);
+                    ConfigurationPanel.createDataSet.setBackground(Color.CYAN);
+
+                }
+            };
+
+            // executes the swingworker on worker thread
+            sw1.execute();
+
         } catch (Exception e) {
             e.printStackTrace();
         }

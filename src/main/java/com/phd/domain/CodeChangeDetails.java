@@ -5,6 +5,25 @@ public class CodeChangeDetails {
     int noOfClass;
     int noOfAuthors;
     int noOfLines;
+    int noOfPackages;
+    int changeComplexity;
+
+    public int getChangeComplexity() {
+        return changeComplexity;
+    }
+
+    public void setChangeComplexity(int changeComplexity) {
+        this.changeComplexity = changeComplexity;
+    }
+
+
+    public int getNoOfPackages() {
+        return noOfPackages;
+    }
+
+    public void setNoOfPackages(int noOfPackages) {
+        this.noOfPackages = noOfPackages;
+    }
 
     public int getIssueId() {
         return issueId;
