@@ -26,24 +26,23 @@ public class FetchData  {
     public static void getData() throws Exception {
         disableSSLCertificateChecking();
         Connection conn=null;
-        try {
+
             conn = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
            // GitHub github = new GitHubBuilder().withOAuthToken(Configuration.getConfig().getAccessToken()).build();
             GitHub github = new GitHubBuilder().build();
             GHRepository repo = github.getRepository(Configuration.getConfig().getRepoName());
-            for(int issueNo=Configuration.getConfig().getRecordFrom(); issueNo<=Configuration.getConfig().getRecordTo();issueNo++) {
-                processIssue(conn, repo,issueNo);
-           }
-        }
-        catch(Exception ex){
-            handleDataException(ex);
-        }
-        finally {
-            com.phd.db.Connect.closeConnection(conn);
-        }
-        //GitHub github = new GitHubBuilder().withOAuthToken("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").build();
-        //GHCommit commit = new GHCommit();
-    }
+
+                for (int issueNo = Configuration.getConfig().getRecordFrom(); issueNo <= Configuration.getConfig().getRecordTo(); issueNo++) {
+                    try {
+                        System.out.println("Processing Id :" + issueNo);
+                        processIssue(conn, repo, issueNo);
+                    }
+                    catch(Exception ex){
+                        System.out.println("Not able to fetch the ID :" + issueNo + " Message :"+ ex.getMessage());
+                    }
+                }
+            }
+
 
     private static void handleDataException(Exception ex) {
         ex.printStackTrace();
@@ -104,23 +103,22 @@ public class FetchData  {
                     int recordProgressCounter = 0;
                     disableSSLCertificateChecking();
                     Connection conn=null;
-                    try {
                         conn = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
                         GitHub github = new GitHubBuilder().withOAuthToken(Configuration.getConfig().getAccessToken()).build();
                        // GitHub github = new GitHubBuilder().build();
                         GHRepository repo = github.getRepository(Configuration.getConfig().getRepoName());
                         for(int issueNo=Configuration.getConfig().getRecordFrom(); issueNo<=Configuration.getConfig().getRecordTo();issueNo++) {
-                            processIssue(conn, repo,issueNo);
+                            try {
+                                System.out.println("Processing Id :" + issueNo);
+                                processIssue(conn, repo, issueNo);
+                            }
+                            catch(Exception ex){
+                                System.out.println("Not able to fetch the ID :" + issueNo + " Message :"+ ex.getMessage());
+                            }
                             recordProgressCounter++;
                             publish(100*recordProgressCounter/totalRecordToFetch);
                         }
-                    }
-                    catch(Exception ex){
-                        handleDataException(ex);
-                    }
-                    finally {
-                        com.phd.db.Connect.closeConnection(conn);
-                    }
+
                     return null;
                 }
 
