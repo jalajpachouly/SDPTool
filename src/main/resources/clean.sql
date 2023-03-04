@@ -1,0 +1,11 @@
+delete from COMMENTS
+delete from AI_CONFIG
+delete from AUTHORS
+delete from CLASSES
+delete from CODE
+delete from CODE_DETAILS
+delete from DEV_TAGS
+delete from FEATURE_SAMPLE
+delete from ISSUE
+delete from LABEL
+delete from PACKAGES
