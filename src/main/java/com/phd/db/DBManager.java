@@ -376,7 +376,7 @@ public class DBManager {
         return codeChanges;
     }
 
-    public static void insertAuthor(Map<Integer, String> authorMap) throws SQLException  {
+    public static void insertAuthor(Map<Integer, HashMap<String,String>> authorMap) throws SQLException  {
         Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
 
         String sql = "INSERT INTO AUTHORS (ISSUE_ID, NAME ) VALUES(?,?)";
@@ -385,7 +385,7 @@ public class DBManager {
         try {
             for (Map.Entry mapElement : authorMap.entrySet()) {
                 Integer id = (Integer)mapElement.getKey();
-                String name = (String) authorMap.get(id);
+                String name = authorMap.get(id).values().toString();
                 pstmt = con.prepareStatement(sql);
                 pstmt.setInt(1, id);
                 pstmt.setString(2, name);
@@ -400,7 +400,7 @@ public class DBManager {
     }
 
 
-    public static void insertPackageDetails(Map<Integer, String> packageMap) throws SQLException {
+    public static void insertPackageDetails(Map<Integer, HashMap<String,String>>  packageMap) throws SQLException {
         Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
 
         String sql = "INSERT INTO PACKAGES (ISSUE_ID, NAME ) VALUES(?,?)";
@@ -409,7 +409,7 @@ public class DBManager {
         try {
             for (Map.Entry mapElement : packageMap.entrySet()) {
                 Integer id = (Integer)mapElement.getKey();
-                String name = (String) packageMap.get(id);
+                String name = packageMap.get(id).values().toString();
                 pstmt = con.prepareStatement(sql);
                 pstmt.setInt(1, id);
                 pstmt.setString(2, name);
@@ -448,7 +448,7 @@ public class DBManager {
 
     }
 
-    public static void insertClassDetails(Map<Integer, String> classMap) throws  SQLException {
+    public static void insertClassDetails(Map<Integer, HashMap<String,String>> classMap) throws  SQLException {
         Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
 
         String sql = "INSERT INTO CLASSES (ISSUE_ID, NAME ) VALUES(?,?)";
@@ -457,7 +457,7 @@ public class DBManager {
         try {
             for (Map.Entry mapElement : classMap.entrySet()) {
                 Integer id = (Integer)mapElement.getKey();
-                String name = (String) classMap.get(id);
+                String name =  classMap.get(id).values().toString().replace("[", "").replace("]","");
                 pstmt = con.prepareStatement(sql);
                 pstmt.setInt(1, id);
                 pstmt.setString(2, name);
