@@ -409,7 +409,7 @@ public class DBManager {
         try {
             for (Map.Entry mapElement : packageMap.entrySet()) {
                 Integer id = (Integer)mapElement.getKey();
-                String name = packageMap.get(id).values().toString();
+                String name = packageMap.get(id).values().toString().replaceAll("/", ".").replace("[", "").replace("]","");
                 pstmt = con.prepareStatement(sql);
                 pstmt.setInt(1, id);
                 pstmt.setString(2, name);

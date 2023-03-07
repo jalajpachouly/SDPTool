@@ -27,4 +27,11 @@ class DataPrePorcessingAndValiadtionTest {
         Assertions.assertEquals(classMap.get(100).values().toString().replace("[", "").replace("]",""),"AwsEc2Service.java, AwsS3Service.java");
     }
 
+    @Test
+    void testPopulatePackgeMap(){
+        Map<Integer, HashMap<String, String>> packageMap = DataPrePorcessingAndValiadtion.populatePackageMap(TestConstants.packageData.split("\\r?\\n"),100);
+        System.out.println(packageMap.get(100).values().toString().replaceAll("/", "."));
+        Assertions.assertEquals(packageMap.get(100).values().toString().replaceAll("/", ".").replace("[", "").replace("]",""),"modules.elasticsearch.src.main.java.org.elasticsearch.index.query.xcontent., modules.elasticsearch.src.main.java.org.elasticsearch.common.unit., modules.elasticsearch.src.test.java.org.elasticsearch.index.query.xcontent.");
+    }
+
 }

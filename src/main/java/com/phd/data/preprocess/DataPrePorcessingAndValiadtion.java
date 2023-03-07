@@ -53,8 +53,8 @@ public class DataPrePorcessingAndValiadtion {
         // Get the total number of classes
         String lines[] = codeChanges.getCodeChange().split("\\r?\\n");
         classMap = populateClassMap(lines, codeChanges.getIssueId());
-        populatePackageMap(lines, packageMap, codeChanges.getIssueId());
-        populateAuthorMap(lines, authorMap, codeChanges.getIssueId());
+        packageMap = populatePackageMap(lines, codeChanges.getIssueId());
+        //populateAuthorMap(lines, authorMap, codeChanges.getIssueId());
         numberOfAuthors = getNumberOfAuthors(lines);
         totalLineChanged = getTotalLinesChanges(lines);
 
@@ -135,7 +135,8 @@ public class DataPrePorcessingAndValiadtion {
         }
     }
 
-    public static void populatePackageMap(String[] lines, Map<Integer, HashMap<String, String>> packageMap, int issueId) {
+    public static Map<Integer,HashMap<String, String>>  populatePackageMap(String[] lines,  int issueId) {
+        Map<Integer,HashMap<String, String>> packageMap = new HashMap<>();
         for (int lineNo = 0; lineNo < lines.length; lineNo++) {
             String line = lines[lineNo];
             String className = getPackageName(line);
@@ -150,6 +151,7 @@ public class DataPrePorcessingAndValiadtion {
 
             }
         }
+        return packageMap;
     }
 
     public static Map<Integer, HashMap<String, String>> populateClassMap(String[] lines, int issueId) {
