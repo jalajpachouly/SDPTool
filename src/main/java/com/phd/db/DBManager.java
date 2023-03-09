@@ -376,6 +376,39 @@ public class DBManager {
         return codeChanges;
     }
 
+    public static List<CodeChanges> getCodeChange(int issueId) {
+        Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
+        List<CodeChanges> codeChanges = new ArrayList<CodeChanges>();
+        String query = "SELECT ISSUE_ID,CHANGES FROM CODE where ISSUE_ID ="+ issueId;
+        Statement stmt = null;
+        ResultSet rs = null;
+        System.out.println(query);
+        try {
+            stmt = con.createStatement();
+            rs = stmt.executeQuery(query);
+
+            // loop through the result set
+
+            while (rs.next()) {
+                CodeChanges codeChange = new CodeChanges();
+                codeChange.setCodeChange(rs.getString("CHANGES"));
+                codeChange.setIssueId(rs.getInt(("ISSUE_ID")));
+                codeChanges.add(codeChange);
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        } finally {
+            try {
+                rs.close();
+                stmt.close();
+                com.phd.db.Connect.closeConnection(con);
+            } catch (SQLException throwables) {
+                throwables.printStackTrace();
+            }
+        }
+        return codeChanges;
+    }
+
     public static void insertAuthor(Map<Integer, HashMap<String,String>> authorMap) throws SQLException  {
         Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
 
@@ -471,7 +504,7 @@ public class DBManager {
         }
     }
 
-    public static List<String> getIssue(int issueId) {
+    public static List<String> getAuthorList(int issueId) {
         {
             Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
             List<String> authorList = new ArrayList<String>();
@@ -482,7 +515,7 @@ public class DBManager {
             try {
                 pstmt = con.prepareStatement(query);
                 pstmt.setInt(1, issueId);
-                rs = pstmt.executeQuery(query);
+                rs = pstmt.executeQuery();
 
                 // loop through the result set
 

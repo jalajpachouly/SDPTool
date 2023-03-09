@@ -46,6 +46,7 @@ public class DataPrePorcessingAndValiadtion {
         // Get the name of the package
         String packageName;
         String className;
+        int issueId = codeChanges.getIssueId();
 
         int totalLineChanged = 0;
 
@@ -57,14 +58,26 @@ public class DataPrePorcessingAndValiadtion {
 
         totalLineChanged = getTotalLinesChanges(lines);
 
+        int packageSize = 0;
+        int classSize = 0;
+        int authorSize =0;
         // calculate the relative complexity
-        int complexity = getCodeChangeComplexity(totalLineChanged, packageMap.size(), classMap.size());
+        if(packageMap!=null && packageMap.size()>0){
+            packageSize = packageMap.get(issueId).size();
+        }
+        if(classMap!=null && classMap.size()>0){
+            classSize = classMap.get(issueId).size();
+        }
+        if(authorMap!=null && authorMap.size()>0){
+            authorSize = authorMap.get(issueId).size();
+        }
+        int complexity = getCodeChangeComplexity(totalLineChanged, packageSize, classSize);
         CodeChangeDetails codeDetails = new CodeChangeDetails();
         codeDetails.setIssueId(codeChanges.getIssueId());
-        codeDetails.setNoOfClass(classMap.size());
-        codeDetails.setNoOfPackages(packageMap.size());
+        codeDetails.setNoOfClass(classSize);
+        codeDetails.setNoOfPackages(packageSize);
         codeDetails.setNoOfLines(totalLineChanged);
-        codeDetails.setNoOfAuthors(authorMap.size());
+        codeDetails.setNoOfAuthors(authorSize);
         codeDetails.setChangeComplexity(complexity);
 
         // Update the changes in the CODE_DETAILS table
@@ -115,7 +128,7 @@ public class DataPrePorcessingAndValiadtion {
 
 
     public static Map<Integer, HashMap<String, String>> populateAuthorMap(int issueId) {
-        List<String> authorNames = DBManager.getIssue(issueId);
+        List<String> authorNames = DBManager.getAuthorList(issueId);
         return getAuthorMap(issueId, authorNames);
     }
 
@@ -174,7 +187,7 @@ public class DataPrePorcessingAndValiadtion {
     }
 
 
-    private static int getCodeChangeComplexity(int totalLineChanged, int packageSize, int classSize ) {
+    public  static int getCodeChangeComplexity(int totalLineChanged, int packageSize, int classSize ) {
         //LOW       : 1
         // MEDIUM   : 2
         //HIGH      : 3
@@ -183,17 +196,12 @@ public class DataPrePorcessingAndValiadtion {
             complexity = 1;
         }
         else
-        if ( totalLineChanged < 30  && packageSize <6 && classSize <10){
+        if ( totalLineChanged < 30  && packageSize <8 && classSize <10){
             complexity = 2;
         }
-        complexity = 3;
-        if(totalLineChanged>5000){
-            complexity = 2;
+        else {
+            complexity = 3;
         }
-        if(totalLineChanged>10000){
-            complexity = 1;
-        }
-
         return complexity;
     }
 
