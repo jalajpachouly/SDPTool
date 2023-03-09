@@ -4,7 +4,9 @@ import com.phd.data.preprocess.DataPrePorcessingAndValiadtion;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 class DataPrePorcessingAndValiadtionTest {
@@ -34,4 +36,12 @@ class DataPrePorcessingAndValiadtionTest {
         Assertions.assertEquals(packageMap.get(100).values().toString().replaceAll("/", ".").replace("[", "").replace("]",""),"modules.elasticsearch.src.main.java.org.elasticsearch.index.query.xcontent., modules.elasticsearch.src.main.java.org.elasticsearch.common.unit., modules.elasticsearch.src.test.java.org.elasticsearch.index.query.xcontent.");
     }
 
+    @Test
+    void testGetAuthorMap(){
+        List<String> list = new ArrayList<String>();
+        list.add("Jalaj");
+        list.add("Kamal");
+        Map<Integer, HashMap<String, String>> map = DataPrePorcessingAndValiadtion.getAuthorMap(100, list);
+        Assertions.assertEquals(2,map.size());
+    }
 }

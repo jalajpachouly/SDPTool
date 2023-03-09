@@ -470,5 +470,45 @@ public class DBManager {
             pstmt.close();
         }
     }
+
+    public static List<String> getIssue(int issueId) {
+        {
+            Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
+            List<String> authorList = new ArrayList<String>();
+            String query = "SELECT REPORTER, CLOSED_BY FROM ISSUE where ISSUE_ID = ?";
+            PreparedStatement pstmt = null;
+            ResultSet rs = null;
+            System.out.println(query);
+            try {
+                pstmt = con.prepareStatement(query);
+                pstmt.setInt(1, issueId);
+                rs = pstmt.executeQuery(query);
+
+                // loop through the result set
+
+                while (rs.next()) {
+                    String reporter = rs.getString("REPORTER");
+                    String closed_by = rs.getString("CLOSED_BY");
+                    if(reporter!=null){
+                        authorList.add(reporter);
+                    }
+                    if(closed_by!=null){
+                        authorList.add(closed_by);
+                    }
+                }
+            } catch (SQLException e) {
+                System.out.println(e.getMessage());
+            } finally {
+                try {
+                    rs.close();
+                    pstmt.close();
+                    com.phd.db.Connect.closeConnection(con);
+                } catch (SQLException throwables) {
+                    throwables.printStackTrace();
+                }
+            }
+            return authorList;
+        }
+    }
 }
 

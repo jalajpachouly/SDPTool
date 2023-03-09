@@ -48,14 +48,13 @@ public class DataPrePorcessingAndValiadtion {
         String className;
 
         int totalLineChanged = 0;
-        int numberOfAuthors = 0;
 
         // Get the total number of classes
         String lines[] = codeChanges.getCodeChange().split("\\r?\\n");
         classMap = populateClassMap(lines, codeChanges.getIssueId());
         packageMap = populatePackageMap(lines, codeChanges.getIssueId());
-        //populateAuthorMap(lines, authorMap, codeChanges.getIssueId());
-        numberOfAuthors = getNumberOfAuthors(lines);
+        authorMap = populateAuthorMap(codeChanges.getIssueId());
+
         totalLineChanged = getTotalLinesChanges(lines);
 
         // calculate the relative complexity
@@ -115,24 +114,25 @@ public class DataPrePorcessingAndValiadtion {
     }
 
 
-    public static void populateAuthorMap(String[] lines, Map<Integer, HashMap<String, String>> authorMap, int issueId) {
-        for (int lineNo = 0; lineNo < lines.length; lineNo++) {
-            String line = lines[lineNo];
-            if (line.contains("@author")) {
-                int authorIndex = line.indexOf("@author");
-                line = line.substring(authorIndex, line.length());
-                String authorName = line.replace("@author", "");
-                if (authorName != null && authorName.trim().length() > 0) {
-                    if (authorMap.get(issueId) != null) {
-                        authorMap.get(issueId).put(authorName, authorName);
-                    } else {
-                        HashMap<String, String> newMap = new HashMap<>();
-                        newMap.put(authorName, authorName);
-                        authorMap.put(issueId, newMap);
-                    }
+    public static Map<Integer, HashMap<String, String>> populateAuthorMap(int issueId) {
+        List<String> authorNames = DBManager.getIssue(issueId);
+        return getAuthorMap(issueId, authorNames);
+    }
+
+    public static Map<Integer, HashMap<String, String>> getAuthorMap(int issueId, List<String> authorNames) {
+        Map<Integer, HashMap<String, String>> authorMap  = new HashMap<>();
+        for(String authorName : authorNames){
+            if (authorName != null && authorName.trim().length() > 0) {
+                if (authorMap.get(issueId) != null) {
+                    authorMap.get(issueId).put(authorName, authorName);
+                } else {
+                    HashMap<String, String> newMap = new HashMap<>();
+                    newMap.put(authorName, authorName);
+                    authorMap.put(issueId, newMap);
                 }
             }
         }
+        return authorMap;
     }
 
     public static Map<Integer,HashMap<String, String>>  populatePackageMap(String[] lines,  int issueId) {
