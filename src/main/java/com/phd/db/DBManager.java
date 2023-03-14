@@ -1,6 +1,7 @@
 package com.phd.db;
 
 import com.phd.config.Configuration;
+import com.phd.domain.CSVModel;
 import com.phd.domain.CodeChangeDetails;
 import com.phd.domain.CodeChanges;
 import com.phd.domain.Comments;
@@ -257,6 +258,35 @@ public class DBManager {
                 comments.setProcessedComments(rs.getString("PROCESSED_COMMENTS"));
                 comments.setId(rs.getInt(("ID")));
                 commentList.add(comments);
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        } finally {
+            try {
+                rs.close();
+                stmt.close();
+                com.phd.db.Connect.closeConnection(con);
+            } catch (SQLException throwables) {
+                throwables.printStackTrace();
+            }
+        }
+        return commentList;
+    }
+
+    public static List<String> getListOfComments(int issueId) {
+        Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
+        List<String> commentList = new ArrayList<>();
+        String query = "SELECT PROCESSED_COMMENTS FROM COMMENTS where ISSUE_ID";
+        Statement stmt = null;
+        ResultSet rs = null;
+        System.out.println(query);
+        try {
+            stmt = con.createStatement();
+            rs = stmt.executeQuery(query);
+
+            // loop through the result set
+           while (rs.next()) {
+                commentList.add(rs.getString("PROCESSED_COMMENTS"));
             }
         } catch (SQLException e) {
             System.out.println(e.getMessage());
@@ -543,5 +573,114 @@ public class DBManager {
             return authorList;
         }
     }
+
+    public static List<CSVModel> getCSVModel(int count) {
+        List<CSVModel> modelList = new ArrayList<CSVModel>();
+        List<Issue> issueList = new ArrayList<Issue>();
+        for(Issue issue : issueList ){
+            List<String> authors = getAuthorList(issue.getId());
+            List<String> comments = getListOfComments(issue.getId());
+            List<String> codeChanges = getListOfClasses(issue.getId());
+            int complexity = getIssueComlexity(issue.getId());
+            String issueType = getDefectType(issue.getId());
+            CSVModel model = new CSVModel();
+            model.setDesc(issue.getProcessedTitle());
+            model.setResources(authors.toArray().toString());
+
+        }
+
+        // In Progress work
+        return modelList;
+
+    }
+
+
+    private static List<String> getListOfClasses(Integer id) {
+        Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
+        List<String> classList = new ArrayList<>();
+        String query = "SELECT NAME FROM CLASSES where ISSUE_ID = " +id;
+        Statement stmt = null;
+        ResultSet rs = null;
+        System.out.println(query);
+        try {
+            stmt = con.createStatement();
+            rs = stmt.executeQuery(query);
+
+            // loop through the result set
+            while (rs.next()) {
+                classList.add(rs.getString("NAME"));
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        } finally {
+            try {
+                rs.close();
+                stmt.close();
+                com.phd.db.Connect.closeConnection(con);
+            } catch (SQLException throwables) {
+                throwables.printStackTrace();
+            }
+        }
+        return classList;
+    }
+
+    private static int getIssueComlexity(Integer id) {
+        Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
+        String query = "SELECT COMPLEXITY FROM CODE_DETAILS where ISSUE_ID = "+id;
+        Statement stmt = null;
+        ResultSet rs = null;
+        int complexity = 0;
+        try {
+            stmt = con.createStatement();
+            rs = stmt.executeQuery(query);
+
+            // loop through the result set
+            while (rs.next()) {
+                complexity =rs.getInt("COMPLEXITY");
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        } finally {
+            try {
+                rs.close();
+                stmt.close();
+                com.phd.db.Connect.closeConnection(con);
+            } catch (SQLException throwables) {
+                throwables.printStackTrace();
+            }
+        }
+        return complexity;
+    }
+
+    private static String getDefectType(Integer id) {
+        Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
+        String query = "select name from label where name like \"%>%\" AND  ISSUE_ID = "+id;
+        Statement stmt = null;
+        ResultSet rs = null;
+        String defectType = null;
+        try {
+            stmt = con.createStatement();
+            rs = stmt.executeQuery(query);
+
+            // loop through the result set
+            while (rs.next()) {
+                defectType =rs.getString("name");
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        } finally {
+            try {
+                rs.close();
+                stmt.close();
+                com.phd.db.Connect.closeConnection(con);
+            } catch (SQLException throwables) {
+                throwables.printStackTrace();
+            }
+        }
+        return defectType;
+    }
+
+
+
 }
 
