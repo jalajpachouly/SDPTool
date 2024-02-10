@@ -160,7 +160,7 @@ public class PreProcessingPanel extends JPanel {
                 publish(20);
                 processDataValidationForComments();
                 publish(40);
-                processDataValidationForIssues();
+                DataPrePorcessingAndValiadtion.processDataValidationForIssues();
                 publish(60);
                 processDataValidationForCodeChanges();
                 publish(90);
@@ -207,54 +207,17 @@ public class PreProcessingPanel extends JPanel {
         }
     }
 
-    public static long betweenDates(Date firstDate, Date secondDate)
-    {
-        return ChronoUnit.DAYS.between(firstDate.toInstant(), secondDate.toInstant());
-    }
 
-    private static void processDataValidationForIssues() {
-        int j=0;
-        /*  1- Get all the Issues from the Issue Table
-            2- Remove the Stop Words and update the processed data in the table
-            3-Enrich the Issue Table, populate the total time
-         */
-        List<Issue> listOfIssue = DBManager.getListOfIssues();
-        try {
-            while (j < listOfIssue.size()) {
 
-                Issue issue = listOfIssue.get(j);
-                Date openDate = formatter.parse(issue.getCreatedAt());
-                Date closeDate = formatter.parse(issue.getClosedAt());
-                long timeTaken = betweenDates(openDate, closeDate);
-                issue.setTimeTakenToFix(timeTaken);
-                issue.setProcessedTitle(DataPrePorcessingAndValiadtion.removeStopWordsFromString(issue.getTitle()));
-                issue.setProcessedBody(DataPrePorcessingAndValiadtion.removeStopWordsFromString(issue.getBody()));
-                DBManager.updateIssue(issue);
-                j +=1;
-            }
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 
-    private static void processDataValidationForComments() {
-       int j=0;
+    public  static void processDataValidationForComments() {
+
         //Get all the comments from the Comment Table and remove the Stop Words
         List<Comments> listOfComments = DBManager.getListOfComments();
-        try {
-            while (j < listOfComments.size()) {
-                Comments comments = listOfComments.get(j);
-                comments.setProcessedComments(DataPrePorcessingAndValiadtion.removeStopWordsFromString(comments.getComment()));
-                DBManager.updateComment(comments);
-                j +=1;
-
-            }
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
+        DataPrePorcessingAndValiadtion.processComments(listOfComments);
     }
+
+
 
     public void repaint() {
 

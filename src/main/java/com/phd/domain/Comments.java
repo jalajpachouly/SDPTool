@@ -26,7 +26,7 @@ public class Comments {
     }
 
     public String getComment() {
-        return comment;
+        return comment.replaceAll("\r", " ").replaceAll("\n"," ");
     }
 
     public void setComment(String comment) {

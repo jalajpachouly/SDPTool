@@ -11,24 +11,21 @@ public class ValidateFinalRecord {
         if(model.getDesc()==null){
             return false;
         }
-        if(model.getComments()==null){
-            return false;
-        }
-        if(model.getComplexity()==null){
-            return false;
-        }
+       // if(model.getComments()==null){
+         //  return false;
+        //}
         if(model.getDefectType()==null){
             return false;
         }
         if(model.getResources()==null){
             return false;
         }
-        if(model.getTags()==null){
-            return false;
-        }
+
         if(model.getCodeChanges()==null){
             return false;
         }
+
+
         return true;
     }
 }

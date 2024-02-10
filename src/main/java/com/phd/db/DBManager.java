@@ -1,6 +1,8 @@
 package com.phd.db;
 
 import com.phd.config.Configuration;
+import com.phd.data.CSVHelper;
+import com.phd.data.validation.ValidateFinalRecord;
 import com.phd.domain.CSVModel;
 import com.phd.domain.CodeChangeDetails;
 import com.phd.domain.CodeChanges;
@@ -273,10 +275,10 @@ public class DBManager {
         return commentList;
     }
 
-    public static List<String> getListOfComments(int issueId) {
+    public static List<Comments> getListOfComments(int issueId) {
         Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
-        List<String> commentList = new ArrayList<>();
-        String query = "SELECT PROCESSED_COMMENTS FROM COMMENTS where ISSUE_ID";
+        List<Comments> commentList = new ArrayList<Comments>();
+        String query = "SELECT COMMENT,ISSUE_ID,PROCESSED_COMMENTS, ID FROM COMMENTS where ISSUE_ID = " +issueId;
         Statement stmt = null;
         ResultSet rs = null;
         System.out.println(query);
@@ -285,8 +287,14 @@ public class DBManager {
             rs = stmt.executeQuery(query);
 
             // loop through the result set
-           while (rs.next()) {
-                commentList.add(rs.getString("PROCESSED_COMMENTS"));
+
+            while (rs.next()) {
+                Comments comments = new Comments();
+                comments.setComment(rs.getString("COMMENT"));
+                comments.setIssueId(rs.getInt(("ISSUE_ID")));
+                comments.setProcessedComments(rs.getString("PROCESSED_COMMENTS"));
+                comments.setId(rs.getInt(("ID")));
+                commentList.add(comments);
             }
         } catch (SQLException e) {
             System.out.println(e.getMessage());
@@ -302,10 +310,39 @@ public class DBManager {
         return commentList;
     }
 
+    public static String getComments(int issueId) {
+        Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
+       StringBuilder  commentList = new StringBuilder();
+        String query = "SELECT PROCESSED_COMMENTS  FROM COMMENTS where ISSUE_ID = " +issueId;
+        Statement stmt = null;
+        ResultSet rs = null;
+        try {
+            stmt = con.createStatement();
+            rs = stmt.executeQuery(query);
+
+            // loop through the result set
+
+            while (rs.next()) {
+                commentList.append(rs.getString("PROCESSED_COMMENTS")).append(" ");
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        } finally {
+            try {
+                rs.close();
+                stmt.close();
+                com.phd.db.Connect.closeConnection(con);
+            } catch (SQLException throwables) {
+                throwables.printStackTrace();
+            }
+        }
+        return commentList.toString();
+    }
+
     public static List<Issue> getListOfIssues() {
         Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
         List<Issue> issueList = new ArrayList<Issue>();
-        String query = "SELECT ISSUE_ID,TITLE, BODY, OPEN_DATE, CLOSE_DATE FROM ISSUE";
+        String query = "SELECT ISSUE_ID,TITLE,PROCESSED_TITLES, BODY, OPEN_DATE, CLOSE_DATE FROM ISSUE";
         Statement stmt = null;
         ResultSet rs = null;
         System.out.println(query);
@@ -318,6 +355,7 @@ public class DBManager {
             while (rs.next()) {
                 Issue issue = new Issue();
                 issue.setId(rs.getInt("ISSUE_ID"));
+                issue.setProcessedTitle(rs.getString(("PROCESSED_TITLES")));
                 issue.setTitle(rs.getString(("TITLE")));
                 issue.setBody(rs.getString("BODY"));
                 issue.setCreatedAt(rs.getString("OPEN_DATE"));
@@ -541,7 +579,6 @@ public class DBManager {
             String query = "SELECT REPORTER, CLOSED_BY FROM ISSUE where ISSUE_ID = ?";
             PreparedStatement pstmt = null;
             ResultSet rs = null;
-            System.out.println(query);
             try {
                 pstmt = con.prepareStatement(query);
                 pstmt.setInt(1, issueId);
@@ -552,10 +589,11 @@ public class DBManager {
                 while (rs.next()) {
                     String reporter = rs.getString("REPORTER");
                     String closed_by = rs.getString("CLOSED_BY");
+
                     if(reporter!=null){
                         authorList.add(reporter);
                     }
-                    if(closed_by!=null){
+                    if(closed_by!=null && reporter!=null && !reporter.equals(closed_by)){
                         authorList.add(closed_by);
                     }
                 }
@@ -576,22 +614,79 @@ public class DBManager {
 
     public static List<CSVModel> getCSVModel(int count) {
         List<CSVModel> modelList = new ArrayList<CSVModel>();
-        List<Issue> issueList = new ArrayList<Issue>();
+        List<Issue> issueList = DBManager.getListOfIssuesForExport();
         for(Issue issue : issueList ){
+            System.out.println("IssueId :"+ issue.getId());
             List<String> authors = getAuthorList(issue.getId());
-            List<String> comments = getListOfComments(issue.getId());
+            String comments = DBManager.getComments(issue.getId());
             List<String> codeChanges = getListOfClasses(issue.getId());
             int complexity = getIssueComlexity(issue.getId());
+            if(complexity ==0){
+                continue;
+            }
             String issueType = getDefectType(issue.getId());
             CSVModel model = new CSVModel();
             model.setDesc(issue.getProcessedTitle());
-            model.setResources(authors.toArray().toString());
-
+            model.setResources(CSVHelper.toString(authors));
+            model.setComments(CSVHelper.toStr(comments));
+            model.setCodeChanges(CSVHelper.toString(codeChanges));
+            model.setComplexity(complexity);
+            model.setDefectType(issueType);
+            if(issue.getProcessedBody()!=null) {
+                model.setBody(CSVHelper.toStr(issue.getProcessedBody()));
+            }
+            else{
+                model.setBody("");
+            }
+            if(ValidateFinalRecord.validate(model)){
+                modelList.add(model);
+            }
+            else{
+                continue;
+            }
         }
 
         // In Progress work
         return modelList;
 
+    }
+
+    public static List<Issue> getListOfIssuesForExport() {
+        {
+            Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
+            List<Issue> issueList = new ArrayList<Issue>();
+            String query = "SELECT  ISSUE_ID,TITLE,PROCESSED_TITLES, PROCESSED_BODY, OPEN_DATE, CLOSE_DATE FROM ISSUE ";
+            Statement stmt = null;
+            ResultSet rs = null;
+            try {
+                stmt = con.createStatement();
+                rs = stmt.executeQuery(query);
+
+                // loop through the result set
+
+                while (rs.next()) {
+                    Issue issue = new Issue();
+                    issue.setId(rs.getInt("ISSUE_ID"));
+                    issue.setProcessedTitle(rs.getString(("PROCESSED_TITLES")));
+                    issue.setTitle(rs.getString(("TITLE")));
+                    issue.setProcessedBody(rs.getString("PROCESSED_BODY"));
+                    issue.setCreatedAt(rs.getString("OPEN_DATE"));
+                    issue.setClosedAt(rs.getString("CLOSE_DATE"));
+                    issueList.add(issue);
+                }
+            } catch (SQLException e) {
+                System.out.println(e.getMessage());
+            } finally {
+                try {
+                    rs.close();
+                    stmt.close();
+                    com.phd.db.Connect.closeConnection(con);
+                } catch (SQLException throwables) {
+                    throwables.printStackTrace();
+                }
+            }
+            return issueList;
+        }
     }
 
 
@@ -601,7 +696,6 @@ public class DBManager {
         String query = "SELECT NAME FROM CLASSES where ISSUE_ID = " +id;
         Statement stmt = null;
         ResultSet rs = null;
-        System.out.println(query);
         try {
             stmt = con.createStatement();
             rs = stmt.executeQuery(query);
@@ -681,6 +775,79 @@ public class DBManager {
     }
 
 
+    public static List<Issue> getNotProcessedIssues() {
+        Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
+        List<Issue> issueList = new ArrayList<Issue>();
+        String query = "SELECT ISSUE_ID,TITLE, BODY, OPEN_DATE, CLOSE_DATE FROM ISSUE where PROCESSED_TITLES is NULL";
+        Statement stmt = null;
+        ResultSet rs = null;
+        System.out.println(query);
+        try {
+            stmt = con.createStatement();
+            rs = stmt.executeQuery(query);
 
+            // loop through the result set
+
+            while (rs.next()) {
+                Issue issue = new Issue();
+                issue.setId(rs.getInt("ISSUE_ID"));
+                issue.setTitle(rs.getString(("TITLE")));
+                issue.setBody(rs.getString("BODY"));
+                issue.setCreatedAt(rs.getString("OPEN_DATE"));
+                issue.setClosedAt(rs.getString("CLOSE_DATE"));
+                issueList.add(issue);
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        } finally {
+            try {
+                rs.close();
+                stmt.close();
+                com.phd.db.Connect.closeConnection(con);
+            } catch (SQLException throwables) {
+                throwables.printStackTrace();
+            }
+        }
+        return issueList;
+    }
+
+    public static List<Issue> getIssue(int i) {
+        {
+            Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
+            List<Issue> issueList = new ArrayList<Issue>();
+            String query = "SELECT ISSUE_ID,TITLE,PROCESSED_TITLES, BODY, OPEN_DATE, CLOSE_DATE FROM ISSUE where ISSUE_ID = "+i;
+            Statement stmt = null;
+            ResultSet rs = null;
+            System.out.println(query);
+            try {
+                stmt = con.createStatement();
+                rs = stmt.executeQuery(query);
+
+                // loop through the result set
+
+                while (rs.next()) {
+                    Issue issue = new Issue();
+                    issue.setId(rs.getInt("ISSUE_ID"));
+                    issue.setProcessedTitle(rs.getString(("PROCESSED_TITLES")));
+                    issue.setTitle(rs.getString(("TITLE")));
+                    issue.setBody(rs.getString("BODY"));
+                    issue.setCreatedAt(rs.getString("OPEN_DATE"));
+                    issue.setClosedAt(rs.getString("CLOSE_DATE"));
+                    issueList.add(issue);
+                }
+            } catch (SQLException e) {
+                System.out.println(e.getMessage());
+            } finally {
+                try {
+                    rs.close();
+                    stmt.close();
+                    com.phd.db.Connect.closeConnection(con);
+                } catch (SQLException throwables) {
+                    throwables.printStackTrace();
+                }
+            }
+            return issueList;
+        }
+    }
 }
 

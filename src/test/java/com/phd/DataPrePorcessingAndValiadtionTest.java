@@ -4,9 +4,12 @@ import com.phd.config.Configuration;
 import com.phd.data.preprocess.DataPrePorcessingAndValiadtion;
 import com.phd.db.DBManager;
 import com.phd.domain.CodeChanges;
+import com.phd.domain.Comments;
+import com.phd.issue.Issue;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import javax.xml.stream.events.Comment;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -74,6 +77,33 @@ class DataPrePorcessingAndValiadtionTest {
         Configuration config =  Configuration.getConfig();
         config.setDbLocation("C:\\DB\\SDP.db");
         List<CodeChanges> changes = DBManager.getCodeChange(454);
-        DataPrePorcessingAndValiadtion.processCodeChanges(changes.get(0));
+       // DataPrePorcessingAndValiadtion.processCodeChanges(changes.get(0));
+    }
+
+
+    @Test
+    void testProcessDataValidationForIssues() throws SQLException{
+        Configuration config =  Configuration.getConfig();
+        config.setDbLocation("C:\\DB\\SDP.db");
+        List<Issue> issue = DBManager.getListOfIssuesForExport();
+        DataPrePorcessingAndValiadtion.updateTitleAndBody(issue);
+    }
+
+    @Test
+    void testProcessComments() {
+        Configuration config =  Configuration.getConfig();
+        config.setDbLocation("C:\\DB\\SDP.db");
+        List<Comments> comments = DBManager.getListOfComments(17448);
+        DataPrePorcessingAndValiadtion.processComments(comments);
+
+    }
+
+    @Test
+    void testProcessAllComments() {
+        Configuration config =  Configuration.getConfig();
+        config.setDbLocation("C:\\DB\\SDP.db");
+        List<Comments> comments = DBManager.getListOfComments();
+        DataPrePorcessingAndValiadtion.processComments(comments);
+
     }
 }

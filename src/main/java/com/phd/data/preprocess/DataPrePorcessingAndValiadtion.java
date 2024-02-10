@@ -3,20 +3,23 @@ package com.phd.data.preprocess;
 import com.phd.db.DBManager;
 import com.phd.domain.CodeChangeDetails;
 import com.phd.domain.CodeChanges;
+import com.phd.domain.Comments;
+import com.phd.issue.Issue;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.text.SimpleDateFormat;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class DataPrePorcessingAndValiadtion {
     private static List<String> stopwords;
+    static SimpleDateFormat formatter = new SimpleDateFormat("E MMM dd HH:mm:ss Z yyyy");
+
 
     static
     {
@@ -28,6 +31,9 @@ public class DataPrePorcessingAndValiadtion {
     }
     public static String removeStopWordsFromString(String rawData)
     {
+        if(rawData==null){
+            return "";
+        }
         String data = rawData.toLowerCase();
         ArrayList<String> allWords = Stream.of(data.split(" "))
                 .collect(Collectors.toCollection(ArrayList<String>::new));
@@ -227,6 +233,58 @@ public class DataPrePorcessingAndValiadtion {
             }
         }
         return null;
+    }
+
+
+    public  static void processDataValidationForIssues() {
+
+        /*  1- Get all the Issues from the Issue Table
+            2- Remove the Stop Words and update the processed data in the table
+            3-Enrich the Issue Table, populate the total time
+         */
+        List<Issue> listOfIssue = DBManager.getListOfIssues();
+        updateTitleAndBody( listOfIssue);
+    }
+
+    public  static void updateTitleAndBody( List<Issue> listOfIssue) {
+
+        for(Issue issue : listOfIssue) {
+            try {
+                System.out.println("Issue : "+ issue.getId());
+                Date openDate = formatter.parse(issue.getCreatedAt());
+                Date closeDate = formatter.parse(issue.getClosedAt());
+                long timeTaken = betweenDates(openDate, closeDate);
+                issue.setTimeTakenToFix(timeTaken);
+                issue.setProcessedTitle(DataPrePorcessingAndValiadtion.removeStopWordsFromString(issue.getTitle()));
+                issue.setProcessedBody(DataPrePorcessingAndValiadtion.removeStopWordsFromString(issue.getBody()));
+                DBManager.updateIssue(issue);
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+    }
+
+    public static long betweenDates(Date firstDate, Date secondDate)
+    {
+        return ChronoUnit.DAYS.between(firstDate.toInstant(), secondDate.toInstant());
+    }
+
+    public static void processComments( List<Comments> listOfComments) {
+        int j=0;
+        try {
+            while (j < listOfComments.size()) {
+                Comments comments = listOfComments.get(j);
+                comments.setProcessedComments(DataPrePorcessingAndValiadtion.removeStopWordsFromString(comments.getComment()));
+                DBManager.updateComment(comments);
+                j +=1;
+
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
 }

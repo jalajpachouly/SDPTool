@@ -22,12 +22,13 @@ public class Authentication {
         public static void main(String[] args) {
 
             // Replace this token with your actual token
-            String token = "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";
+            String token = "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";
 
-            String url = "raw.githubusercontent.com/Crunchify/All-in-One-Webmaster/master/readme.txt";
+
+            String url = "eos2git.cec.lab.emc.com/search?l=Java&p=5&q=org%3ACIRRUS+Decommission&type=Code";
 
             // HttpClient Method to get Private Github content with Basic OAuth token
-            getGithubContentUsingHttpClient(token, url);
+            //getGithubContentUsingHttpClient(token, url);
 
             // URLConnection Method to get Private Github content with Basic OAuth token
             getGithubContentUsingURLConnection(token, url);
