@@ -252,6 +252,10 @@ public class DataPrePorcessingAndValiadtion {
             try {
                 System.out.println("Issue : "+ issue.getId());
                 Date openDate = formatter.parse(issue.getCreatedAt());
+                if(issue.getClosedAt()==null){
+                    System.out.println("Skipping Issue : "+ issue.getId());
+                    continue;
+                }
                 Date closeDate = formatter.parse(issue.getClosedAt());
                 long timeTaken = betweenDates(openDate, closeDate);
                 issue.setTimeTakenToFix(timeTaken);

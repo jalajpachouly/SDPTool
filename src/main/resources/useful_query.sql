@@ -1,0 +1,1 @@
+select distinct( name), COLOR from LABEL where color in ( 'd93f0b','b60205','db755e','4a4ea8','006b75','d4c5f9','cfcfcf','dddddd','5319e7','e11d21')order by name 

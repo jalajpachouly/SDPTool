@@ -13,11 +13,12 @@ public class Connect {
         Connection conn = null;
         try {
             // db parameters
-            String url = "jdbc:sqlite:"+dbLocation;    //  C:\\SQLLITE\\DB\\SDP.db";
+            String url = "jdbc:sqlite:C:/DB/SDP.db";
             // create a connection to the database
             conn = DriverManager.getConnection(url);
 
         } catch (SQLException e) {
+            e.printStackTrace();
             System.out.println(e.getMessage());
         }
         return conn;
@@ -32,6 +33,10 @@ public class Connect {
         } catch (SQLException ex) {
             System.out.println(ex.getMessage());
         }
+    }
+
+    public static void main(String[] args) {
+        getConnection("test");
     }
 
 }
