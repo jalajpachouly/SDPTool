@@ -11,13 +11,10 @@ import com.phd.issue.FetchData;
 import com.phd.issue.Issue;
 import org.kohsuke.github.*;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.sql.*;
 import java.util.*;
+import java.util.regex.*;
 
 public class DBManager {
 
@@ -112,29 +109,133 @@ public class DBManager {
         }
     }
 
+    /**
+     * Extracts the PR number from an issue that is a pull request.
+     * @param issue The issue from which to extract the PR number.
+     * @return PR number as a String or null if not a pull request or if number cannot be extracted.
+     */
+    public static Integer extractPrNumberFromIssue(GHIssue issue) {
+        if (issue.isPullRequest()) { // Ensure it's a pull request
+
+                String prUrl = issue.getPullRequest().getUrl().toString();
+                Pattern pattern = Pattern.compile(".*/pull/(\\d+)$");
+                Matcher matcher = pattern.matcher(prUrl);
+                if (matcher.find()) {
+                    return Integer.parseInt(matcher.group(1)); // Return the extracted PR number
+                }
+
+
+        }
+        return null; // Return null if it's not a pull request or if no number is found
+    }
+
     public static void getAndInsertCodeChanges(GHIssue issue, Connection conn) throws Exception {
         if (issue.getPullRequest() != null && issue.getPullRequest().getDiffUrl() != null) {
-            StringBuffer response = new StringBuffer();
-            URL url = issue.getPullRequest().getDiffUrl();
-            HttpURLConnection http = (HttpURLConnection) url.openConnection();
-            http.setRequestProperty("Accept", "application/json");
-            // http.setRequestProperty("Authorization", "Bearer " + "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");
-            http.setRequestProperty("Authorization", "Bearer " + Configuration.getConfig().getAccessToken());
+           int  prNo = extractPrNumberFromIssue(issue);
+           GHPullRequest pr = issue.getRepository().getPullRequest(prNo);
+            insertPullRequestsIntoDatabase(pr,conn, issue.getNumber());
+            insertReviewComments(pr.listReviewComments().toList(), pr.getNumber(), issue.getNumber(), conn);
+            insertReviewers(pr.listReviewComments().toList(), pr.getNumber(), issue.getNumber(), conn);
+            insertFilesChanged(pr.listFiles(),pr.getNumber(), issue.getNumber(), conn);
+            insertTeams(pr.getRequestedTeams(),pr.getNumber(), issue.getNumber(), conn);
+        }
+    }
+        private static void insertTeams(List<GHTeam> requestedTeams, int pr, int issue_id, Connection conn) {
+            // SQL statement to insert team name, PR number, and issue ID
+            String sql = "INSERT INTO TEAMS (TEAM_NAME, PR_NO, ISSUE_ID) VALUES (?, ?, ?)";
 
-            BufferedReader in = new BufferedReader(
-                    new InputStreamReader(http.getInputStream()));
-            String inputLine;
+            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                for (GHTeam team : requestedTeams) {
+                    // Get the name of the team from GHTeam object
+                    String teamName = team.getName();  // Assuming getName() is the method to get team name
 
-            while ((inputLine = in.readLine()) != null) {
-                response.append(inputLine);
-                response.append(System.lineSeparator());
+                    // Set the parameters for the PreparedStatement
+                    pstmt.setString(1, teamName);
+                    pstmt.setInt(2, pr);
+                    pstmt.setInt(3, issue_id);
+
+                    // Execute the SQL statement
+                    pstmt.executeUpdate();
+                }
+            } catch (SQLException e) {
+                System.out.println("Error occurred while inserting teams: " + e.getMessage());
+                e.printStackTrace();
             }
-            in.close();
-            insertCodeChanges(issue, conn, response.toString());
         }
 
+    public static void insertPullRequestsIntoDatabase(GHPullRequest  pr,Connection connection, int issue_id) throws SQLException, Exception {
 
+        String sql = "INSERT INTO PULL_RQ (PR_ID, ISSUE_ID, REPO_ID, USER_ID, TITLE, BODY, STATE, CREATED_AT, UPDATED_AT, CLOSED_AT, MERGED_AT, MERGE_COMMIT_SHA, HEAD_REF, BASE_REF, MERGEABLE, MERGED, COMMENTS_COUNT, REVIEW_COMMENTS_COUNT, COMMITS_COUNT, ADDITIONS, DELETIONS, CHANGED_FILES_COUNT) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+        PreparedStatement statement = connection.prepareStatement(sql);
+
+            statement.setInt(1, pr.getNumber());
+            statement.setInt(2, issue_id); // Assuming the Issue ID is linked to the PR ID
+            statement.setLong(3, pr.getRepository().getId());
+            statement.setLong(4, pr.getUser().getId());
+            statement.setString(5, pr.getTitle());
+            statement.setString(6, pr.getBody());
+            statement.setString(7, pr.getState().toString());
+            statement.setTimestamp(8, new java.sql.Timestamp(pr.getCreatedAt().getTime()));
+            statement.setTimestamp(9, new java.sql.Timestamp(pr.getUpdatedAt().getTime()));
+            statement.setTimestamp(10, pr.getClosedAt() != null ? new java.sql.Timestamp(pr.getClosedAt().getTime()) : null);
+            statement.setTimestamp(11, pr.getMergedAt() != null ? new java.sql.Timestamp(pr.getMergedAt().getTime()) : null);
+            statement.setString(12, pr.getMergeCommitSha());
+            statement.setString(13, pr.getHead().getRef());
+            statement.setString(14, pr.getBase().getRef());
+            statement.setBoolean(15, pr.isMerged());
+            statement.setBoolean(16, pr.isMerged());
+            statement.setInt(17, pr.getCommentsCount());
+            statement.setInt(18, pr.getReviewComments());
+            statement.setInt(19, pr.getCommits());
+            statement.setInt(20, pr.getAdditions());
+            statement.setInt(21, pr.getDeletions());
+            statement.setInt(22, pr.getChangedFiles());
+
+            statement.executeUpdate();
+
+        statement.close();
     }
+
+    private static void insertReviewComments(List<GHPullRequestReviewComment> comments, int prNo, int issueId, Connection conn)  throws Exception {
+        String sql = "INSERT INTO pr_review_comments (PR_NO, ISSUE_ID, USER_ID, COMMENT, CREATED_AT) VALUES (?, ?, ?, ?, ?)";
+        try (PreparedStatement statement = conn.prepareStatement(sql)) {
+            for (GHPullRequestReviewComment comment : comments) {
+                statement.setInt(1, prNo);
+                statement.setInt(2, issueId);
+                statement.setLong(3, comment.getUser().getId());
+                statement.setString(4, comment.getBody());
+                statement.setTimestamp(5, new Timestamp(comment.getCreatedAt().getTime()));
+                statement.executeUpdate();
+            }
+        }
+    }
+
+    private static void insertReviewers(List<GHPullRequestReviewComment> reviewers, int prNo, int issueId, Connection conn)  throws Exception {
+        String sql = "INSERT INTO pr_reviewers (PR_NO, ISSUE_ID, USER_ID) VALUES (?, ?, ?)";
+        try (PreparedStatement statement = conn.prepareStatement(sql)) {
+            for (GHPullRequestReviewComment reviewer : reviewers) {
+                statement.setInt(1, prNo);
+                statement.setInt(2, issueId);
+                statement.setString(3, reviewer.getUser().getLogin());
+                statement.executeUpdate();
+            }
+        }
+    }
+
+    private static void insertFilesChanged(PagedIterable<GHPullRequestFileDetail> files, int prNo, int issueId, Connection conn) throws SQLException {
+        String sql = "INSERT INTO pr_files_changed (PR_NO, ISSUE_ID, FILE_NAME, STATUS) VALUES (?, ?, ?, ?)";
+        try ( PreparedStatement statement = conn.prepareStatement(sql)) {
+            for (GHPullRequestFileDetail file : files) {
+                statement.setInt(1, prNo);
+                statement.setInt(2, issueId);
+                statement.setString(3, file.getFilename());
+                statement.setString(4, file.getStatus());
+                statement.executeUpdate();
+            }
+        }
+    }
+
 
     public static void saveConfiguration(Configuration config) {
         Connection con = null;

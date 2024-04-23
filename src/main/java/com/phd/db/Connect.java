@@ -13,7 +13,7 @@ public class Connect {
         Connection conn = null;
         try {
             // db parameters
-            String url = "jdbc:sqlite:C:/DB/SDP.db";
+            String url = "jdbc:sqlite:C:/DB/SDP1.db";
             // create a connection to the database
             conn = DriverManager.getConnection(url);
 

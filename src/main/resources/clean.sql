@@ -1,6 +1,3 @@
--- Start transaction to ensure all or none of the operations are executed
-BEGIN TRANSACTION;
-
 -- Delete records from tables that have foreign keys pointing to them first
 DELETE FROM "COMMENTS";
 DELETE FROM "LABEL";
@@ -16,7 +13,7 @@ DELETE FROM "AUTHORS";
 DELETE FROM "CLASSES";
 
 -- Delete records from tables that are not dependent on other tables
-DELETE FROM "CONFIGURATION";
-
--- Commit the transaction to finalize the deletions
-COMMIT;
+delete from PULL_RQ;
+delete from pr_files_changed;
+delete from pr_review_comments;
+delete from pr_reviewers;
