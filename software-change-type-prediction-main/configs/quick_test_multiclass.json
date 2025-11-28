@@ -1,0 +1,77 @@
+{
+  "output": {
+    "reports_dir": "../output/reports",
+    "save_results_csv": true,
+    "results_filename_balanced": "results_balanced.csv",
+    "results_filename_unbalanced": "results_unbalanced.csv"
+  },
+  "models": {
+    "traditional": {
+      "random_forest": {
+        "n_estimators": 200,
+        "random_state": 42,
+        "enabled": true
+      },
+      "logistic_regression": {
+        "penalty": "l2",
+        "max_iter": 1000,
+        "enabled": true
+      },
+      "multinomial_nb": {"enabled": true},
+      "linear_svm": {"enabled": true}
+    },
+    "bert": {
+      "batch_size": 16,
+      "optimizer": "adamw",
+      "balance_training": true,
+      "epochs": 4,
+      "learning_rate": 0.00002,
+      "enabled": false,
+      "max_length": 128
+    }
+  },
+  "experiment_name": "Multi-Class Quick Test",
+  "feature_engineering": {"vectorizer": "tfidf"},
+  "visualizations": {
+    "correlation_matrix": false,
+    "f1_scores": false,
+    "word_clouds": false,
+    "train_distribution": true,
+    "enabled": false,
+    "description_length": false,
+    "bert_distribution": true,
+    "nb_metrics": false,
+    "metrics_barplot": true,
+    "metrics_boxplot": true,
+    "class_distribution": false,
+    "all_metrics_boxplot": false,
+    "label_frequency": false,
+    "top_features": false
+  },
+  "data": {
+    "smote": {
+      "k_neighbors": 5,
+      "enabled": true
+    },
+    "dataset_path": "../dataset.csv",
+    "run_unbalanced": true,
+    "label_column": "target",
+    "test_size": 0.2,
+    "run_balanced": true,
+    "random_state": 42,
+    "text_column": "report"
+  },
+  "preprocessing": {
+    "lemmatize": true,
+    "max_features": 5000,
+    "lowercase": true,
+    "remove_stopwords": true,
+    "ngram_range": [
+      1,
+      2
+    ],
+    "remove_non_alpha": true
+  },
+  "problem_type": "multi_class",
+  "enabled": true
+}

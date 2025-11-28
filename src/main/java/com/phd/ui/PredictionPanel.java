@@ -1,0 +1,358 @@
+package com.phd.ui;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.json.JSONTokener;
+
+import javax.swing.*;
+import javax.swing.border.EmptyBorder;
+import java.awt.*;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class PredictionPanel extends JPanel {
+    private static final Pattern RUN_TIMESTAMP_PATTERN = Pattern.compile("(\\d{8}_\\d{6})$");
+    private static final DateTimeFormatter RUN_NAME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+    private static final DateTimeFormatter HUMAN_READABLE_FORMAT = DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm:ss");
+    private static PredictionPanel instance;
+    private static final List<String> REPORT_DIRS = Arrays.asList(
+            "multilable-prediction/output/reports",
+            "software-change-type-prediction-main/output/reports"
+    );
+    private JPanel runsListPanel;
+
+    public PredictionPanel() {
+        instance = this;
+        setLayout(new BorderLayout(0, 12));
+        setBorder(new EmptyBorder(10, 10, 10, 10));
+        JLabel title = new JLabel("Prediction Runs");
+        title.setFont(title.getFont().deriveFont(Font.BOLD, 18f));
+        title.setBorder(new EmptyBorder(0, 0, 8, 0));
+        add(title, BorderLayout.NORTH);
+        runsListPanel = new JPanel();
+        runsListPanel.setLayout(new BoxLayout(runsListPanel, BoxLayout.Y_AXIS));
+        runsListPanel.setBorder(new EmptyBorder(0, 0, 20, 0));
+        JScrollPane scrollPane = new JScrollPane(runsListPanel);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+        add(scrollPane, BorderLayout.CENTER);
+        refreshRunsList();
+    }
+
+    public static void refreshPanel() {
+        if (instance != null) {
+            instance.refreshRunsList();
+        }
+    }
+
+    private void refreshRunsList() {
+        runsListPanel.removeAll();
+        List<File> runDirs = new ArrayList<>();
+        for (String dirPath : REPORT_DIRS) {
+            File reportsDir = new File(dirPath);
+            if (!reportsDir.exists() || !reportsDir.isDirectory()) {
+                continue;
+            }
+            File[] dirs = reportsDir.listFiles(File::isDirectory);
+            if (dirs != null) {
+                runDirs.addAll(Arrays.asList(dirs));
+            }
+        }
+        if (runDirs.isEmpty()) {
+            runsListPanel.add(new JLabel("No prediction runs were found."));
+        } else {
+            runDirs.sort(Comparator.comparingLong(File::lastModified).reversed());
+            for (File runDir : runDirs) {
+                RunMetadata meta = buildMetadata(runDir);
+                runsListPanel.add(createRunEntry(meta));
+                runsListPanel.add(Box.createVerticalStrut(12));
+            }
+        }
+        runsListPanel.revalidate();
+        runsListPanel.repaint();
+    }
+
+    private JPanel createRunEntry(RunMetadata metadata) {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(220, 223, 230)),
+                new EmptyBorder(12, 14, 12, 14)
+        ));
+        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 110));
+
+        JLabel nameLabel = new JLabel(metadata.displayName);
+        nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD, 15f));
+
+        JLabel summaryLabel = new JLabel(buildSummaryLine(metadata));
+        summaryLabel.setForeground(new Color(90, 98, 110));
+
+        JLabel statusLabel = new JLabel(metadata.status);
+        statusLabel.setForeground(statusToColor(metadata.status));
+
+        JPanel textPanel = new JPanel();
+        textPanel.setOpaque(false);
+        textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
+        textPanel.add(nameLabel);
+        textPanel.add(Box.createVerticalStrut(4));
+        textPanel.add(summaryLabel);
+        textPanel.add(Box.createVerticalStrut(6));
+        textPanel.add(statusLabel);
+        if (metadata.hyperSummary != null && !metadata.hyperSummary.isBlank()) {
+            String hyperText = metadata.hyperSummary.trim();
+            String shortText = hyperText.length() > 180 ? hyperText.substring(0, 177) + "..." : hyperText;
+            JLabel hyperLabel = new JLabel("Key Params: " + shortText);
+            if (hyperText.length() > shortText.length()) {
+                hyperLabel.setToolTipText(hyperText);
+            }
+            hyperLabel.setForeground(new Color(110, 118, 130));
+            hyperLabel.setFont(hyperLabel.getFont().deriveFont(Font.ITALIC, 11f));
+            textPanel.add(Box.createVerticalStrut(6));
+            textPanel.add(hyperLabel);
+        }
+
+        JPanel actionsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        actionsPanel.setOpaque(false);
+        JButton openButton = new JButton("Open Report");
+        openButton.setEnabled(metadata.hasReport);
+        openButton.addActionListener(e -> openReport(metadata.runDir));
+
+        JButton deleteButton = new JButton("Delete");
+        deleteButton.addActionListener(e -> {
+            deleteRun(metadata.runDir);
+            refreshRunsList();
+        });
+
+        actionsPanel.add(openButton);
+        actionsPanel.add(deleteButton);
+
+        panel.add(textPanel, BorderLayout.CENTER);
+        panel.add(actionsPanel, BorderLayout.EAST);
+        return panel;
+    }
+
+    private String buildSummaryLine(RunMetadata metadata) {
+        String timePart = metadata.formattedTimestamp != null ? metadata.formattedTimestamp : "Unknown time";
+        String dataPart = "Data: " + String.join(", ", metadata.dataTypes);
+        String modelPart = metadata.models.isEmpty()
+                ? "Models: Not recorded"
+                : "Models: " + String.join(", ", metadata.models);
+        return timePart + "   |   " + dataPart + "   |   " + modelPart;
+    }
+
+    private RunMetadata buildMetadata(File runDir) {
+        RunMetadata metadata = new RunMetadata();
+        metadata.runDir = runDir;
+        metadata.folderName = runDir.getName();
+        metadata.displayName = metadata.folderName;
+        metadata.hasReport = new File(runDir, "report.html").exists();
+        boolean hasCompleteFlag = new File(runDir, "COMPLETE.flag").exists();
+        metadata.status = hasCompleteFlag ? "Completed" : "Processing...";
+
+        File metaFile = new File(runDir, "metadata.json");
+        if (metaFile.exists()) {
+            try (FileReader reader = new FileReader(metaFile)) {
+                JSONObject json = new JSONObject(new JSONTokener(reader));
+                metadata.displayName = json.optString("run_name", metadata.displayName);
+                metadata.timestampRaw = json.optString("timestamp", null);
+                metadata.formattedTimestamp = formatTimestamp(metadata.timestampRaw);
+                metadata.dataTypes = readList(json.optJSONArray("data_types"));
+                metadata.models = readList(json.optJSONArray("models"));
+                JSONObject hyper = json.optJSONObject("hyperparameters");
+                metadata.hyperSummary = buildHyperSummary(hyper);
+                metadata.status = resolveStatus(json.optString("status", null), hasCompleteFlag);
+            } catch (Exception ex) {
+                metadata.formattedTimestamp = formatTimestamp(extractTimestamp(metadata.folderName));
+            }
+        } else {
+            metadata.formattedTimestamp = formatTimestamp(extractTimestamp(metadata.folderName));
+        }
+
+        if (metadata.dataTypes.isEmpty()) {
+            metadata.dataTypes = Collections.singletonList("Unknown");
+        }
+        if (metadata.formattedTimestamp == null) {
+            metadata.formattedTimestamp = "Unknown time";
+        }
+
+        return metadata;
+    }
+
+    private List<String> readList(JSONArray array) {
+        List<String> values = new ArrayList<>();
+        if (array == null) {
+            return values;
+        }
+        for (int i = 0; i < array.length(); i++) {
+            values.add(array.optString(i));
+        }
+        return values;
+    }
+
+    private String buildHyperSummary(JSONObject hyperJson) {
+        if (hyperJson == null) {
+            return null;
+        }
+        List<String> sections = new ArrayList<>();
+        Iterator<String> keys = hyperJson.keys();
+        while (keys.hasNext()) {
+            String dataType = keys.next();
+            JSONArray entries = hyperJson.optJSONArray(dataType);
+            if (entries == null || entries.length() == 0) {
+                continue;
+            }
+            List<String> snippets = new ArrayList<>();
+            for (int i = 0; i < entries.length(); i++) {
+                JSONObject entry = entries.optJSONObject(i);
+                if (entry == null) {
+                    continue;
+                }
+                String model = entry.optString("model", "?");
+                JSONObject params = entry.optJSONObject("parameters");
+                String snippet = summarizeParams(params);
+                snippets.add(snippet.isEmpty() ? model : model + "(" + snippet + ")");
+                if (snippets.size() >= 3) {
+                    break;
+                }
+            }
+            if (!snippets.isEmpty()) {
+                sections.add(dataType + ": " + String.join(", ", snippets));
+            }
+        }
+        if (sections.isEmpty()) {
+            return null;
+        }
+        return String.join(" | ", sections);
+    }
+
+    private String summarizeParams(JSONObject params) {
+        if (params == null || params.length() == 0) {
+            return "";
+        }
+        List<String> pieces = new ArrayList<>();
+        Iterator<String> keys = params.keys();
+        while (keys.hasNext() && pieces.size() < 3) {
+            String key = keys.next();
+            Object value = params.opt(key);
+            pieces.add(key + "=" + value);
+        }
+        if (params.length() > pieces.size()) {
+            pieces.add("...");
+        }
+        return String.join(", ", pieces);
+    }
+
+    private String extractTimestamp(String value) {
+        if (value == null) {
+            return null;
+        }
+        Matcher matcher = RUN_TIMESTAMP_PATTERN.matcher(value);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        return null;
+    }
+
+    private String formatTimestamp(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        try {
+            LocalDateTime dateTime = LocalDateTime.parse(raw, RUN_NAME_FORMATTER);
+            return dateTime.format(HUMAN_READABLE_FORMAT);
+        } catch (DateTimeParseException ex) {
+            return raw;
+        }
+    }
+
+    private void openReport(File runDir) {
+        File htmlFile = new File(runDir, "report.html");
+        if (htmlFile.exists()) {
+            try {
+                Desktop.getDesktop().browse(htmlFile.toURI());
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(this, "Failed to open report: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } else {
+            JOptionPane.showMessageDialog(this, "Report not found.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void deleteRun(File runDir) {
+        try {
+            Files.walk(runDir.toPath())
+                .sorted(Comparator.reverseOrder())
+                .map(Path::toFile)
+                .forEach(File::delete);
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this, "Failed to delete run: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private String resolveStatus(String statusValue, boolean hasCompleteFlag) {
+        if (hasCompleteFlag) {
+            return "Completed";
+        }
+        String normalized = statusValue == null ? "" : statusValue.trim().toLowerCase();
+        switch (normalized) {
+            case "complete":
+            case "completed":
+            case "done":
+                return "Completed";
+            case "failed":
+            case "error":
+            case "stopped":
+                return "Failed";
+            case "running":
+            case "processing":
+            case "in_progress":
+            case "in-progress":
+                return "Processing...";
+            default:
+                return "Processing...";
+        }
+    }
+
+    private Color statusToColor(String status) {
+        if (status == null) {
+            return new Color(90, 98, 110);
+        }
+        String normalized = status.toLowerCase();
+        if (normalized.contains("complete")) {
+            return new Color(34, 139, 34);
+        }
+        if (normalized.contains("fail") || normalized.contains("error")) {
+            return new Color(178, 34, 34);
+        }
+        if (normalized.contains("process") || normalized.contains("run")) {
+            return new Color(204, 102, 0);
+        }
+        return new Color(90, 98, 110);
+    }
+
+    private static class RunMetadata {
+        private File runDir;
+        private String folderName;
+        private String displayName;
+        private String timestampRaw;
+        private String formattedTimestamp;
+        private List<String> dataTypes = new ArrayList<>();
+        private List<String> models = new ArrayList<>();
+        private boolean hasReport;
+        private String status;
+        private String hyperSummary;
+    }
+}

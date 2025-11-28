@@ -1,0 +1,26 @@
+@startuml
+title Multi-label Run Flow (Java -> Python)
+
+start
+:User clicks "Run" on Multi-Label tab;
+:persistInputsToModel();\ngetActiveConfig();
+:saveConfigToFile(false)\n-> write config JSON to\n`multilable-prediction/configs/quick_test.json`;
+if (save ok?) then (yes)
+  :Create SwingWorker;
+  :executePythonScript();
+  :Resolve paths for\n`configurable_main.py`\nand `quick_test.json`;
+  if (files exist?) then (yes)
+    :ProcessBuilder("python", scriptPath, configPath)\n-> set working dir to script folder\n-> redirect stderr to stdout;
+    :process.start();\nread combined output;
+    :waitFor() exitCode;
+  else (missing)
+    :Throw IOException;
+  endif
+  :Refresh PredictionPanel;
+  :Show output dialog\n(title depends on exitCode);
+else (fail)
+  :Show error dialog\n"Unable to save configuration";
+endif
+stop
+
+@enduml
