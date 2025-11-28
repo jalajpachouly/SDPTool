@@ -415,7 +415,7 @@ def main(
             X_train_df, X_test_df, y_train_df, y_test_df = load_data(csv_path, LABELS, sample_size=sample_size)
     except Exception as e:
         print(f"Error loading data: {e}")
-        return
+        return (None, None, None, None, None)
 
     # ====================================
     # Visualizations (EXACT logic from main.py lines 71-74)
@@ -453,7 +453,7 @@ def main(
         )
     except Exception as e:
         print(f"Error during data preparation: {e}")
-        return
+        return (None, None, None, None, None)
 
     if X_train_tfidf.shape[1] == 0:
         raise ValueError("No features were selected.")
