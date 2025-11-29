@@ -7,10 +7,9 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.TitledBorder;
 import java.awt.*;
+import java.awt.event.ItemEvent;
 import java.io.FileReader;
 import java.io.FileWriter;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -50,12 +49,12 @@ public class VisualizationPanel extends JPanel {
 
     private JComponent buildContent() {
         JPanel panel = new JPanel(new GridLayout(1, 2, 12, 12));
-        panel.add(buildConfigPanel("Multi-label", multiLabelConfig, mlChecks, this::handleSaveMultiLabel));
-        panel.add(buildConfigPanel("Multi-class", multiClassConfig, mcChecks, this::handleSaveMultiClass));
+        panel.add(buildConfigPanel("Multi-label", multiLabelConfig, mlChecks, this::handleSaveMultiLabel, MULTILABEL_CONFIG_PATH));
+        panel.add(buildConfigPanel("Multi-class", multiClassConfig, mcChecks, this::handleSaveMultiClass, MULTICLASS_CONFIG_PATH));
         return panel;
     }
 
-    private JPanel buildConfigPanel(String title, JSONObject config, Map<String, JCheckBox> checkMap, Runnable onSave) {
+    private JPanel buildConfigPanel(String title, JSONObject config, Map<String, JCheckBox> checkMap, Runnable onSave, String path) {
         JPanel wrapper = new JPanel(new BorderLayout());
         wrapper.setBorder(new TitledBorder(title));
 
@@ -74,6 +73,10 @@ public class VisualizationPanel extends JPanel {
         addCheck(grid, checkMap, "nb_metrics", "NB metrics chart");
 
         applyValues(config, checkMap);
+        attachAutoSave(checkMap, () -> {
+            persistValues(config, checkMap);
+            saveConfig(path, config, title);
+        });
 
         JButton saveButton = new JButton("Save " + title + " visuals");
         saveButton.addActionListener(e -> onSave.run());
@@ -92,6 +95,17 @@ public class VisualizationPanel extends JPanel {
     private void applyValues(JSONObject config, Map<String, JCheckBox> checks) {
         JSONObject vis = ensureObject(config, "visualizations");
         checks.forEach((key, box) -> box.setSelected(vis.optBoolean(key, true)));
+    }
+
+    private void attachAutoSave(Map<String, JCheckBox> checks, Runnable saveAction) {
+        // Save immediately whenever a checkbox is toggled so the JSON stays in sync with UI
+        checks.values().forEach(box ->
+            box.addItemListener(e -> {
+                if (e.getStateChange() == ItemEvent.SELECTED || e.getStateChange() == ItemEvent.DESELECTED) {
+                    saveAction.run();
+                }
+            })
+        );
     }
 
     private void persistValues(JSONObject config, Map<String, JCheckBox> checks) {

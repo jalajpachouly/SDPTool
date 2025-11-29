@@ -19,15 +19,15 @@
         "enabled": true
       },
       "multinomial_nb": {
-        "use_classifier_chain": true,
-        "enabled": true
+        "use_classifier_chain": false,
+        "enabled": false
       },
       "cv_n_splits": 10,
       "run_cross_validation": false,
       "run_cross_validation_by_model": {
         "random_forest": true,
         "logistic_regression": true,
-        "multinomial_nb": true
+        "multinomial_nb": false
       },
       "enabled": true
     },
@@ -51,10 +51,10 @@
         "cv_batch_size": 16,
         "batch_size": 16,
         "cv_n_splits": 10,
-        "run_cross_validation": true,
+        "run_cross_validation": false,
         "validation_split": 0.2,
         "epochs": 100,
-        "enabled": true,
+        "enabled": false,
         "early_stopping_patience": 5,
         "cv_epochs": 100,
         "architecture": {
@@ -70,8 +70,8 @@
         "conv_filters": 128,
         "embedding_dim": 100,
         "cv_n_splits": 10,
-        "run_cross_validation": true,
-        "enabled": true,
+        "run_cross_validation": false,
+        "enabled": false,
         "early_stopping_patience": 5,
         "max_len": 100,
         "max_words": 5000,
@@ -82,7 +82,7 @@
         "conv_kernel_size": 5,
         "cv_epochs": 10
       },
-      "enabled": true
+      "enabled": false
     }
   },
   "experiment_name": "Quick Test - All Models Enabled",

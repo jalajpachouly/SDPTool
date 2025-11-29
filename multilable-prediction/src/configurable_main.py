@@ -870,6 +870,8 @@ if __name__ == "__main__":
 
     # Override output_directory in config to always use output/<config_name>
     json_config['output_directory'] = str(output_base)
+    # Track the configured sample size for reporting
+    sample_size = json_config.get('data', {}).get('sample_size')
 
     # Determine which data types to run
     data_types = []
@@ -1090,7 +1092,7 @@ if __name__ == "__main__":
             f.write("<p>")
             f.write(f"Sample size: {sample_size if sample_size is not None else 'Full dataset'}; ")
             f.write(f"Train rows: {len(X_train_df) if 'X_train_df' in locals() else 'n/a'}, Test rows: {len(X_test_df) if 'X_test_df' in locals() else 'n/a'}; ")
-            f.write(f"Test split: {config.get('data', {}).get('test_size', 'n/a')}")
+            f.write(f"Test split: {json_config.get('data', {}).get('test_size', 'n/a')}")
             f.write("</p>")
             feature_df = all_feature_k.get(data_type)
             if feature_df is not None and not feature_df.empty:

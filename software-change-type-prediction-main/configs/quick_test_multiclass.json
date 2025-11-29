@@ -33,20 +33,20 @@
   "experiment_name": "Multi-Class Quick Test",
   "feature_engineering": {"vectorizer": "tfidf"},
   "visualizations": {
-    "correlation_matrix": false,
-    "f1_scores": false,
-    "word_clouds": false,
+    "correlation_matrix": true,
+    "f1_scores": true,
+    "word_clouds": true,
     "train_distribution": true,
-    "enabled": false,
-    "description_length": false,
+    "enabled": true,
+    "description_length": true,
     "bert_distribution": true,
-    "nb_metrics": false,
+    "nb_metrics": true,
     "metrics_barplot": true,
     "metrics_boxplot": true,
-    "class_distribution": false,
-    "all_metrics_boxplot": false,
-    "label_frequency": false,
-    "top_features": false
+    "class_distribution": true,
+    "all_metrics_boxplot": true,
+    "label_frequency": true,
+    "top_features": true
   },
   "data": {
     "smote": {
