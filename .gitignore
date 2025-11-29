@@ -14,3 +14,6 @@ software-change-type-prediction-main/output/
 *.csv
 *.log
 *.html
+
+# Keep the baseline multi-label dataset under version control
+!multilable-prediction/data/dataset.csv
