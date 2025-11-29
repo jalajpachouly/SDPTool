@@ -325,6 +325,23 @@ def main(
     import glob
     project_root = Path(__file__).parent.parent
 
+    # Validate config is provided
+    if config is None:
+        raise ValueError("Configuration is required. No hardcoded defaults are supported.")
+    
+    # Progress logging helper functions
+    def log_progress(percent, message):
+        """Log overall progress with structured marker for UI parsing"""
+        print(f"[PROGRESS:overall:{percent}:{message}]")
+        print(f"  → {message}")
+    
+    def log_task(model_name, percent, message):
+        """Log task-specific progress for individual models"""
+        print(f"[TASK:{model_name}:{percent}:{message}]")
+        print(f"    {model_name}: {message}")
+    
+    log_progress(0, "Starting experiment...")
+
     resolved_run_name = run_name or (config.get('experiment_name', 'run') if config else 'run')
     resolved_timestamp = timestamp or datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
     if run_folder is None:
@@ -408,40 +425,49 @@ def main(
     # ====================================
     # Load Data (EXACT logic from main.py lines 62-69)
     # ====================================
+    log_progress(10, f"Loading {data_type} data...")
     try:
         if data_type == 'Balanced':
             X_train_df, X_test_df, y_train_df, y_test_df = load_data_balanced(csv_path, LABELS, sample_size=sample_size)
+            print(f"  Loaded balanced data: {len(X_train_df)} train, {len(X_test_df)} test samples")
         else:
             X_train_df, X_test_df, y_train_df, y_test_df = load_data(csv_path, LABELS, sample_size=sample_size)
+            print(f"  Loaded data: {len(X_train_df)} train, {len(X_test_df)} test samples")
     except Exception as e:
         print(f"Error loading data: {e}")
-        return (None, None, None, None, None)
+        return
 
     # ====================================
     # Visualizations (EXACT logic from main.py lines 71-74)
     # ====================================
     if run_visualizations:
+        log_progress(15, "Generating visualizations...")
         visualize_description_length(X_train_df, data_type, output_dir)
         visualize_class_distribution(y_train_df, y_test_df, data_type, output_dir)
         visualize_correlation_matrix(y_train_df, data_type, output_dir)
+        print("  Generated data distribution visualizations")
 
     # ====================================
     # Word Clouds and Vocabulary Collection (EXACT logic from main.py lines 76-82)
     # ====================================
     vocab_set = set()
     wordcloud_vocab = None
-    if run_visualizations and (config is None or config['visualizations'].get('word_clouds', True)):
-        for label in LABELS:
+    if run_visualizations and config['visualizations'].get('word_clouds', False):
+        log_progress(20, "Generating word clouds...")
+        for i, label in enumerate(LABELS):
+            progress = 20 + int((i / len(LABELS)) * 5)
+            log_task("WordCloud", int((i / len(LABELS)) * 100), f"Processing {label}")
             top_words = visualize_word_cloud(X_train_df, y_train_df, label, max_words=max_words_per_label, output_dir=output_dir)
             vocab_set.update(top_words)
         if use_wordcloud_vocab:
             wordcloud_vocab = list(vocab_set) if vocab_set else None
         if wordcloud_vocab:
-            print(f"\nTotal unique words collected from word clouds: {len(wordcloud_vocab)}")
+            print(f"  Total unique words collected from word clouds: {len(wordcloud_vocab)}")
 
     # ====================================
     # Prepare Data with Vocabulary (EXACT logic from main.py lines 84-92)
     # ====================================
+    log_progress(25, "Preparing features (TF-IDF, Chi2 selection)...")
     try:
         X_train_tfidf, X_test_tfidf, selected_features, chi2_scores_max, vector = prepare_data(
             X_train_df, X_test_df, y_train_df,
@@ -451,9 +477,10 @@ def main(
             min_df=tfidf_min_df,
             use_idf=tfidf_use_idf
         )
+        print(f"  Feature engineering complete: {X_train_tfidf.shape[1]} features selected")
     except Exception as e:
         print(f"Error during data preparation: {e}")
-        return (None, None, None, None, None)
+        return
 
     if X_train_tfidf.shape[1] == 0:
         raise ValueError("No features were selected.")
@@ -487,16 +514,16 @@ def main(
         model_names.append('MultinomialNB')
 
     if run_ml.get('LogisticRegression', False):
-        lr_conf = trad_ml.get('logistic_regression', {})
-        clf = LogisticRegression(max_iter=lr_conf.get('max_iter', 10000))
+        lr_conf = trad_ml['logistic_regression']
+        clf = LogisticRegression(max_iter=lr_conf['max_iter'])
         if lr_conf.get('use_classifier_chain', True):
             clf = ClassifierChain(clf)
         classifiers.append(clf)
         model_names.append('LogisticRegression')
 
     if run_ml.get('RandomForest', False):
-        rf_conf = trad_ml.get('random_forest', {})
-        clf = RandomForestClassifier(n_estimators=rf_conf.get('n_estimators', 100), random_state=rf_conf.get('random_state', 42))
+        rf_conf = trad_ml['random_forest']
+        clf = RandomForestClassifier(n_estimators=rf_conf['n_estimators'], random_state=rf_conf['random_state'])
         if rf_conf.get('use_classifier_chain', True):
             clf = ClassifierChain(clf)
         classifiers.append(clf)
@@ -523,15 +550,28 @@ def main(
     # ====================================
     # Evaluate Classifiers on Test Set (EXACT logic from main.py lines 117-120)
     # ====================================
+    log_progress(50, "Training and evaluating models...")
     all_results = []
-    for clf, model_name in zip(classifiers, model_names):
+    model_count = len(classifiers)
+    for idx, (clf, model_name) in enumerate(classifiers, model_names):
+        model_progress = 50 + int((idx / max(model_count, 1)) * 30)
+        log_progress(model_progress, f"Training {model_name}...")
+        log_task(model_name, 0, "Training on dataset...")
         results = evaluate_classifier(clf, model_name, X_train_tfidf, y_train_np, X_test_tfidf, y_test_np, label_names)
+        log_task(model_name, 100, "Evaluation complete")
         all_results.extend(results)
+        # Log metrics
+        if results:
+            avg_f1 = sum(r['F1'] for r in results) / len(results)
+            avg_recall = sum(r['Recall'] for r in results) / len(results)
+            print(f"  {model_name} → Avg F1: {avg_f1:.4f}, Avg Recall: {avg_recall:.4f}")
 
     # ====================================
     # Deep Learning Model - MLP (EXACT logic from main.py lines 122-152)
     # ====================================
     if run_dl_mlp:
+        log_progress(80, "Training MLP deep learning model...")
+        log_task("MLP", 0, "Initializing architecture...")
         mlp_conf = config['models']['deep_learning']['mlp']
         arch_conf = mlp_conf.get('architecture', {})
         from utils.config import MLPConfig
@@ -541,6 +581,7 @@ def main(
             dropout_rate=arch_conf.get('layer1_dropout', 0.5),
             output_dim=y_train_np.shape[1]
         )
+        log_task("MLP", 10, "Running cross-validation...")
         print("\n===== Training and Evaluating Deep Learning Model via Cross-Validation =====")
         deep_learning_cv_scores = cross_validation_score_deep_learning(
             lambda: build_mlp_model(X_train_tfidf.shape[1], y_train_np.shape[1], config=mlp_config_obj),
@@ -550,6 +591,7 @@ def main(
             batch_size=mlp_conf.get('cv_batch_size', mlp_conf.get('batch_size', 16)),
             patience=mlp_conf.get('early_stopping_patience', 5)
         )
+        log_task("MLP", 50, "Cross-validation complete")
         print(f"\nDeep Learning Cross-validation results:")
         print(f"Recall: {deep_learning_cv_scores['Recall']:.4f}")
         print(f"F1-score: {deep_learning_cv_scores['F1']:.4f}")
@@ -557,6 +599,7 @@ def main(
             fold_metrics['MLP'] = deep_learning_cv_scores['fold_f1']
 
         # Train Deep Learning Model on Entire Training Set
+        log_task("MLP", 60, "Training on full dataset...")
         print("\n===== Training Deep Learning Model on Entire Training Set =====")
         deep_learning_model = build_mlp_model(input_dim=X_train_tfidf.shape[1], output_dim=y_train_np.shape[1], config=mlp_config_obj)
         early_stop = EarlyStopping(monitor='val_loss', patience=mlp_conf.get('early_stopping_patience', 5), restore_best_weights=True)
@@ -570,15 +613,20 @@ def main(
             callbacks=[early_stop],
             verbose=0
         )
+        log_task("MLP", 90, "Evaluating on test set...")
 
         # Evaluate Deep Learning Model on Test Set
         results_dl = evaluate_deep_learning_model(deep_learning_model, X_test_tfidf, y_test_np, 'MLP', label_names)
         all_results.extend(results_dl)
+        log_task("MLP", 100, "MLP evaluation complete")
+        print(f"  MLP → Avg F1: {sum(r['F1'] for r in results_dl)/len(results_dl):.4f}")
 
     # ====================================
     # Prepare Data for CNN (EXACT logic from main.py lines 154-160)
     # ====================================
     if run_dl_cnn:
+        log_progress(85, "Preparing and training CNN model...")
+        log_task("CNN", 0, "Preparing sequence data...")
         cnn_conf = config['models']['deep_learning']['cnn']
         X_train_dl, X_test_dl, tokenizer = prepare_data_for_deep_learning(
             X_train_df['report'], X_test_df['report'],
@@ -607,6 +655,7 @@ def main(
             )
 
         # Cross-Validation for CNN Model
+        log_task("CNN", 10, "Running cross-validation...")
         print("\n===== Training and Evaluating CNN Model via Cross-Validation =====")
         cnn_cv_scores = cross_validation_score_deep_learning(
             cnn_builder,
@@ -616,11 +665,13 @@ def main(
             batch_size=cnn_conf.get('cv_batch_size', cnn_conf.get('batch_size', 32)),
             patience=cnn_conf.get('early_stopping_patience', 5)
         )
+        log_task("CNN", 50, "Cross-validation complete")
         print(f"\nCNN Cross-validation results:")
         print(f"Recall: {cnn_cv_scores['Recall']:.4f}")
         print(f"F1-score: {cnn_cv_scores['F1']:.4f}")
 
         # Train CNN Model on Entire Training Set
+        log_task("CNN", 60, "Training on full dataset...")
         print("\n===== Training CNN Model on Entire Training Set =====")
         cnn_model = cnn_builder()
         early_stop = EarlyStopping(monitor='val_loss', patience=cnn_conf.get('early_stopping_patience', 5), restore_best_weights=True)
@@ -633,25 +684,31 @@ def main(
             callbacks=[early_stop],
             verbose=1
         )
+        log_task("CNN", 90, "Evaluating on test set...")
 
         # Evaluate CNN Model on Test Set
         results_cnn = evaluate_deep_learning_model(cnn_model, X_test_dl, y_test_np, 'CNN', label_names)
         all_results.extend(results_cnn)
+        log_task("CNN", 100, "CNN evaluation complete")
+        print(f"  CNN → Avg F1: {sum(r['F1'] for r in results_cnn)/len(results_cnn):.4f}")
 
     # ====================================
     # Combine Results and Visualize (EXACT logic from main.py lines 184-194)
     # ====================================
+    log_progress(90, "Saving results and generating visualizations...")
     # Save metrics/results CSV
     if all_results:
         df_results = pd.DataFrame(all_results)
         df_results['Hamming Loss'] = pd.to_numeric(df_results['Hamming Loss'], errors='coerce')
         results_csv = run_folder / f"results_{data_type.lower()}.csv"
         df_results.to_csv(results_csv, index=False)
+        print(f"  Results saved to {results_csv.name}")
         # Visualization of Results
         if run_visualizations:
             sns.set(style="whitegrid")
             visualize_f1_scores(df_results, data_type, output_dir)
             performance_charts = generate_performance_charts(df_results, data_type, output_dir)
+            print("  Generated performance visualizations")
         print("\nAll processes completed successfully.")
     else:
         print("\n[WARNING] No models were run. Check your configuration.")
@@ -663,7 +720,7 @@ def main(
     if run_visualizations:
         images = list(run_folder.glob('*.png'))
         # Also include wordclouds and other images from configured output directory
-        output_images = glob.glob(str(project_root / config.get('output_directory', 'output/quick_test') / '*.png')) if config else []
+        output_images = glob.glob(str(project_root / config['output_directory'] / '*.png')) if config and 'output_directory' in config else []
         for img_path in output_images:
             img_name = Path(img_path).name
             dest_path = run_folder / img_name
@@ -675,6 +732,7 @@ def main(
     logs = list(run_folder.glob('*.log'))
 
     if generate_report:
+        log_progress(95, "Generating HTML report...")
         # Generate HTML report
         html_path = run_folder / 'report.html'
         with open(html_path, 'w', encoding='utf-8') as f:
@@ -837,7 +895,8 @@ def main(
 
             f.write("<hr><p>Run complete.</p>")
             f.write("</body></html>")
-
+        
+        log_progress(98, "Writing metadata and finalizing...")
         charts = []
         if summary_chart_path:
             charts.append(Path(summary_chart_path).name)
@@ -848,6 +907,12 @@ def main(
         # Mark run as complete
         with open(run_folder / 'COMPLETE.flag', 'w') as flagf:
             flagf.write('complete')
+        
+        log_progress(100, "Experiment complete!")
+        print(f"\n{'='*60}")
+        print(f"EXPERIMENT COMPLETE: {run_name}")
+        print(f"Report available at: {html_path}")
+        print(f"{'='*60}")
 
     return (df_results if all_results else None, model_hyperparams, summary_chart_path, performance_charts, fold_metrics)
 
@@ -855,7 +920,7 @@ def main(
 if __name__ == "__main__":
     """
     Entry point - reads config and runs experiments.
-    This replaces the hardcoded execution from original main.py lines 197-201.
+    Configuration is required - no hardcoded defaults are supported.
     """
     # Get config file from command line or use default
     config_file = sys.argv[1] if len(sys.argv) > 1 else 'main_config.json'
@@ -870,8 +935,6 @@ if __name__ == "__main__":
 
     # Override output_directory in config to always use output/<config_name>
     json_config['output_directory'] = str(output_base)
-    # Track the configured sample size for reporting
-    sample_size = json_config.get('data', {}).get('sample_size')
 
     # Determine which data types to run
     data_types = []
@@ -1092,7 +1155,7 @@ if __name__ == "__main__":
             f.write("<p>")
             f.write(f"Sample size: {sample_size if sample_size is not None else 'Full dataset'}; ")
             f.write(f"Train rows: {len(X_train_df) if 'X_train_df' in locals() else 'n/a'}, Test rows: {len(X_test_df) if 'X_test_df' in locals() else 'n/a'}; ")
-            f.write(f"Test split: {json_config.get('data', {}).get('test_size', 'n/a')}")
+            f.write(f"Test split: {config.get('data', {}).get('test_size', 'n/a')}")
             f.write("</p>")
             feature_df = all_feature_k.get(data_type)
             if feature_df is not None and not feature_df.empty:
@@ -1137,8 +1200,15 @@ if __name__ == "__main__":
 
         f.write("<hr><p>Run complete.</p>")
         f.write("</body></html>")
-
+    
+    log_progress(98, "Writing metadata and finalizing...")
     write_run_metadata(run_folder, run_name, timestamp, data_types, combined_models, config_file, hyperparameters=hyperparams_by_type, charts=chart_names_for_metadata)
     # Mark run as complete
     with open(run_folder / 'COMPLETE.flag', 'w') as flagf:
         flagf.write('complete')
+    
+    log_progress(100, "Experiment complete!")
+    print(f"\n{'='*60}")
+    print(f"EXPERIMENT COMPLETE: {run_name}")
+    print(f"Report available at: {html_path}")
+    print(f"{'='*60}")

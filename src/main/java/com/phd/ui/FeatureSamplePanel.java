@@ -14,7 +14,8 @@ import java.io.FileReader;
 import java.io.FileWriter;
 
 public class FeatureSamplePanel extends JPanel {
-    private static final String CONFIG_PATH = "multilable-prediction/configs/quick_test.json";
+    private static final String DEFAULT_CONFIG_PATH = "multilable-prediction/configs/quick_test.json";
+    private final String configPath;
 
     private JSONObject config;
     private JSONObject dataConfig;
@@ -39,6 +40,11 @@ public class FeatureSamplePanel extends JPanel {
     private JCheckBox useIdfBox;
 
     public FeatureSamplePanel() {
+        this(DEFAULT_CONFIG_PATH);
+    }
+
+    public FeatureSamplePanel(String configPath) {
+        this.configPath = configPath;
         loadConfig();
         setLayout(new BorderLayout());
         setBorder(new EmptyBorder(10, 10, 10, 10));
@@ -49,7 +55,7 @@ public class FeatureSamplePanel extends JPanel {
     }
 
     private void loadConfig() {
-        try (FileReader reader = new FileReader(CONFIG_PATH)) {
+        try (FileReader reader = new FileReader(configPath)) {
             config = new JSONObject(new JSONTokener(reader));
         } catch (Exception e) {
             config = new JSONObject();
@@ -221,11 +227,15 @@ public class FeatureSamplePanel extends JPanel {
 
     private void handleSave(ActionEvent event) {
         persistUiToModel();
-        try (FileWriter writer = new FileWriter(CONFIG_PATH)) {
+        try (FileWriter writer = new FileWriter(configPath)) {
             writer.write(config.toString(2));
-            JOptionPane.showMessageDialog(this, "Configuration saved successfully.");
+            if (!GraphicsEnvironment.isHeadless()) {
+                JOptionPane.showMessageDialog(this, "Configuration saved successfully.");
+            }
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Unable to save configuration: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            if (!GraphicsEnvironment.isHeadless()) {
+                JOptionPane.showMessageDialog(this, "Unable to save configuration: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
         }
     }
 
@@ -278,6 +288,17 @@ public class FeatureSamplePanel extends JPanel {
         tfidf.put("ngram_range", range);
         tfidf.put("min_df", getInt(minDfSpinner));
         tfidf.put("use_idf", useIdfBox.isSelected());
+    }
+
+    // Test hooks
+    void persistUiToModelForTest() {
+        persistUiToModel();
+    }
+
+    void saveSilentlyForTest() throws Exception {
+        try (FileWriter writer = new FileWriter(configPath)) {
+            writer.write(config.toString(2));
+        }
     }
 
     private JSONObject ensureObject(JSONObject parent, String key) {

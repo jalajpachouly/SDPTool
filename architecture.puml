@@ -1,0 +1,150 @@
+@startuml SDPTool_Architecture
+!theme plain
+skinparam componentStyle rectangle
+
+title Software Defect Prediction Tool - High Level Architecture
+
+package "Java Swing UI Layer" {
+    [Home] as home
+    [ConfigurationPanel] as configPanel
+    [PreProcessingPanel] as preProcessPanel
+    [FeatureSamplePanel] as featurePanel
+    [AITechniquePanel] as aiPanel
+    [VisualizationPanel] as vizPanel
+    [PredictionPanel] as predPanel
+}
+
+package "Configuration & Data Layer" {
+    [Configuration] as config
+    [DataPreProcessing] as dataPrep
+    [CSVHelper] as csvHelper
+    [GenerateCSV] as genCSV
+    [WriteCsvToDisk] as writeCsv
+}
+
+package "Database Layer" {
+    database "SQLite DB" as db
+    [DBManager] as dbMgr
+    [Connect] as dbConn
+}
+
+package "GitHub Integration" {
+    cloud "GitHub API" as github
+    [FetchData] as fetchData
+    [Issue] as issue
+    [User] as user
+    [Label] as label
+}
+
+package "Domain Models" {
+    [CodeChangeDetails] as codeChanges
+    [Comments] as comments
+    [CSVModel] as csvModel
+    [Issue Domain] as issueDomain
+}
+
+package "Python ML Backend - Multi-Label" {
+    [configurable_main.py] as mlMain
+    [data_loading] as dataLoad
+    [feature_engineering] as featureEng
+    [models] as mlModels
+    [evaluation] as mlEval
+    [visualization] as mlViz
+}
+
+package "Python ML Backend - Multi-Class" {
+    [multiclass_main.py] as mcMain
+    [multiclass_models] as mcModels
+    [multiclass_evaluation] as mcEval
+}
+
+package "Output & Reports" {
+    folder "output/reports/{run}" as reports {
+        file "report.html" as htmlReport
+        file "run.log" as runLog
+        file "results_*.csv" as resultsCsv
+        file "*.png" as images
+        file "COMPLETE.flag" as completeFlag
+    }
+}
+
+' UI Relationships
+home --> configPanel
+home --> preProcessPanel
+home --> featurePanel
+home --> aiPanel
+home --> vizPanel
+home --> predPanel
+
+' Configuration relationships
+configPanel --> config
+aiPanel --> config
+preProcessPanel --> dataPrep
+
+' Data processing flow
+fetchData --> github : "Fetch Issues"
+fetchData --> dbMgr : "Store Data"
+dbMgr --> dbConn
+dbMgr --> db
+dbMgr --> issueDomain
+dbMgr --> comments
+dbMgr --> codeChanges
+
+' CSV generation
+dataPrep --> csvHelper
+dataPrep --> genCSV
+genCSV --> writeCsv
+writeCsv --> csvModel
+csvModel --> db
+
+' AI Technique execution
+aiPanel --> mlMain : "Execute Python\n(Multi-Label)"
+aiPanel --> mcMain : "Execute Python\n(Multi-Class)"
+
+' ML Backend flow - Multi-Label
+mlMain --> dataLoad
+mlMain --> featureEng
+mlMain --> mlModels : "RandomForest\nLogisticRegression\nMultinomialNB\nMLP\nCNN"
+mlMain --> mlEval
+mlMain --> mlViz
+mlMain --> reports : "Generate Reports"
+
+' ML Backend flow - Multi-Class
+mcMain --> mcModels : "SVM\nDecisionTree\nXGBoost"
+mcMain --> mcEval
+mcMain --> reports
+
+' Prediction panel
+predPanel --> reports : "List & Display\nHTML Reports"
+
+' Visualization panel
+vizPanel --> reports : "Display Charts\n& Metrics"
+
+note right of mlMain
+  Supports:
+  - Balanced/Unbalanced data
+  - Traditional ML models
+  - Deep Learning (MLP, CNN)
+  - Feature selection (Chi2)
+  - Cross-validation
+end note
+
+note right of reports
+  Each run contains:
+  - Consolidated HTML report
+  - Comparison tables/visuals
+  - Feature selection K data
+  - Raw logs
+  - All images and CSVs
+end note
+
+note left of github
+  Data Sources:
+  - Issues
+  - Pull Requests
+  - Code Changes
+  - Comments
+  - Labels
+end note
+
+@enduml

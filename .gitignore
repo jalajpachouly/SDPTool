@@ -17,3 +17,6 @@ software-change-type-prediction-main/output/
 
 # Keep the baseline multi-label dataset under version control
 !multilable-prediction/data/dataset.csv
+
+# Python virtual environments
+.venv/

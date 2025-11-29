@@ -18,8 +18,11 @@ import java.util.Map;
  */
 public class VisualizationPanel extends JPanel {
 
-    private static final String MULTILABEL_CONFIG_PATH = "multilable-prediction/configs/quick_test.json";
-    private static final String MULTICLASS_CONFIG_PATH = "software-change-type-prediction-main/configs/quick_test_multiclass.json";
+    private static final String DEFAULT_MULTILABEL_CONFIG_PATH = "multilable-prediction/configs/quick_test.json";
+    private static final String DEFAULT_MULTICLASS_CONFIG_PATH = "software-change-type-prediction-main/configs/quick_test_multiclass.json";
+
+    private final String multiLabelConfigPath;
+    private final String multiClassConfigPath;
 
     private JSONObject multiLabelConfig;
     private JSONObject multiClassConfig;
@@ -28,6 +31,12 @@ public class VisualizationPanel extends JPanel {
     private final Map<String, JCheckBox> mcChecks = new LinkedHashMap<>();
 
     public VisualizationPanel() {
+        this(DEFAULT_MULTILABEL_CONFIG_PATH, DEFAULT_MULTICLASS_CONFIG_PATH);
+    }
+
+    public VisualizationPanel(String multiLabelConfigPath, String multiClassConfigPath) {
+        this.multiLabelConfigPath = multiLabelConfigPath;
+        this.multiClassConfigPath = multiClassConfigPath;
         setLayout(new BorderLayout());
         setBorder(new EmptyBorder(10, 10, 10, 10));
         loadConfigs();
@@ -35,8 +44,8 @@ public class VisualizationPanel extends JPanel {
     }
 
     private void loadConfigs() {
-        multiLabelConfig = loadConfig(MULTILABEL_CONFIG_PATH);
-        multiClassConfig = loadConfig(MULTICLASS_CONFIG_PATH);
+        multiLabelConfig = loadConfig(multiLabelConfigPath);
+        multiClassConfig = loadConfig(multiClassConfigPath);
     }
 
     private JSONObject loadConfig(String path) {
@@ -49,8 +58,8 @@ public class VisualizationPanel extends JPanel {
 
     private JComponent buildContent() {
         JPanel panel = new JPanel(new GridLayout(1, 2, 12, 12));
-        panel.add(buildConfigPanel("Multi-label", multiLabelConfig, mlChecks, this::handleSaveMultiLabel, MULTILABEL_CONFIG_PATH));
-        panel.add(buildConfigPanel("Multi-class", multiClassConfig, mcChecks, this::handleSaveMultiClass, MULTICLASS_CONFIG_PATH));
+        panel.add(buildConfigPanel("Multi-label", multiLabelConfig, mlChecks, this::handleSaveMultiLabel, multiLabelConfigPath));
+        panel.add(buildConfigPanel("Multi-class", multiClassConfig, mcChecks, this::handleSaveMultiClass, multiClassConfigPath));
         return panel;
     }
 
@@ -75,7 +84,7 @@ public class VisualizationPanel extends JPanel {
         applyValues(config, checkMap);
         attachAutoSave(checkMap, () -> {
             persistValues(config, checkMap);
-            saveConfig(path, config, title);
+            saveConfig(path, config, title, false);
         });
 
         JButton saveButton = new JButton("Save " + title + " visuals");
@@ -115,20 +124,24 @@ public class VisualizationPanel extends JPanel {
 
     private void handleSaveMultiLabel() {
         persistValues(multiLabelConfig, mlChecks);
-        saveConfig(MULTILABEL_CONFIG_PATH, multiLabelConfig, "Multi-label");
+        saveConfig(multiLabelConfigPath, multiLabelConfig, "Multi-label", true);
     }
 
     private void handleSaveMultiClass() {
         persistValues(multiClassConfig, mcChecks);
-        saveConfig(MULTICLASS_CONFIG_PATH, multiClassConfig, "Multi-class");
+        saveConfig(multiClassConfigPath, multiClassConfig, "Multi-class", true);
     }
 
-    private void saveConfig(String path, JSONObject config, String title) {
+    private void saveConfig(String path, JSONObject config, String title, boolean showMessage) {
         try (FileWriter writer = new FileWriter(path)) {
             writer.write(config.toString(2));
-            JOptionPane.showMessageDialog(this, title + " visualization settings saved.", "Saved", JOptionPane.INFORMATION_MESSAGE);
+            if (showMessage && !GraphicsEnvironment.isHeadless()) {
+                JOptionPane.showMessageDialog(this, title + " visualization settings saved.", "Saved", JOptionPane.INFORMATION_MESSAGE);
+            }
         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Unable to save " + title + " settings: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            if (!GraphicsEnvironment.isHeadless()) {
+                JOptionPane.showMessageDialog(this, "Unable to save " + title + " settings: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
         }
     }
 
@@ -139,5 +152,13 @@ public class VisualizationPanel extends JPanel {
             parent.put(key, child);
         }
         return child;
+    }
+
+    // Test hook: persist current checkboxes and save without dialogs
+    void saveSilently() {
+        persistValues(multiLabelConfig, mlChecks);
+        saveConfig(multiLabelConfigPath, multiLabelConfig, "Multi-label", false);
+        persistValues(multiClassConfig, mcChecks);
+        saveConfig(multiClassConfigPath, multiClassConfig, "Multi-class", false);
     }
 }

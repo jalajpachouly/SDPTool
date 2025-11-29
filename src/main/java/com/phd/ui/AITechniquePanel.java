@@ -18,12 +18,17 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 public class AITechniquePanel extends JPanel {
-    private static final String MULTILABEL_CONFIG_PATH = "multilable-prediction/configs/quick_test.json";
-    private static final String MULTILABEL_SCRIPT_PATH = "multilable-prediction/src/configurable_main.py";
-    private static final String MULTICLASS_CONFIG_PATH = "software-change-type-prediction-main/configs/quick_test_multiclass.json";
-    private static final String MULTICLASS_SCRIPT_PATH = "software-change-type-prediction-main/src/configurable_main.py";
+    private static final String DEFAULT_MULTILABEL_CONFIG_PATH = "multilable-prediction/configs/quick_test.json";
+    private static final String DEFAULT_MULTILABEL_SCRIPT_PATH = "multilable-prediction/src/configurable_main.py";
+    private static final String DEFAULT_MULTICLASS_CONFIG_PATH = "software-change-type-prediction-main/configs/quick_test_multiclass.json";
+    private static final String DEFAULT_MULTICLASS_SCRIPT_PATH = "software-change-type-prediction-main/src/configurable_main.py";
     private static final String PROBLEM_MULTI_LABEL = "multi_label";
     private static final String PROBLEM_MULTI_CLASS = "multi_class";
+
+    private final String multiLabelConfigPath;
+    private final String multiLabelScriptPath;
+    private final String multiClassConfigPath;
+    private final String multiClassScriptPath;
 
     private JSONObject multiLabelConfig;
     private JSONObject multiClassConfig;
@@ -34,7 +39,9 @@ public class AITechniquePanel extends JPanel {
     private JRadioButton mlRadio;
     private JRadioButton mcRadio;
     private JProgressBar runProgressBar;
+    private JProgressBar taskProgressBar;
     private JLabel runStatusLabel;
+    private JLabel taskStatusLabel;
 
     // Multi-label controls
     private JCheckBox mlRandomForestEnabledBox;
@@ -52,9 +59,19 @@ public class AITechniquePanel extends JPanel {
     private JCheckBox mlMultinomialEnabledBox;
     private JCheckBox mlMultinomialChainBox;
     private JCheckBox mlMultinomialCvBox;
+    private JTextField mlExperimentNameField;
     private JCheckBox mlRunUnbalancedBox;
     private JCheckBox mlRunBalancedBox;
     private JSpinner mlBalancedTargetSpinner;
+    
+    private JSpinner mlTopKSpinner;
+    private JSpinner mlTopKPlotSpinner;
+    private JSpinner mlMaxWordsPerLabelSpinner;
+    private JCheckBox mlUseWordcloudVocabBox;
+    private JSpinner mlTfidfMinDfSpinner;
+    private JCheckBox mlTfidfUseIdfBox;
+    private JSpinner mlTfidfNgramMinSpinner;
+    private JSpinner mlTfidfNgramMaxSpinner;
 
     private JCheckBox mlDeepLearningEnabledBox;
 
@@ -112,6 +129,14 @@ public class AITechniquePanel extends JPanel {
 
     private boolean updatingUiValues;
     public AITechniquePanel() {
+        this(DEFAULT_MULTILABEL_CONFIG_PATH, DEFAULT_MULTILABEL_SCRIPT_PATH, DEFAULT_MULTICLASS_CONFIG_PATH, DEFAULT_MULTICLASS_SCRIPT_PATH);
+    }
+
+    public AITechniquePanel(String multiLabelConfigPath, String multiLabelScriptPath, String multiClassConfigPath, String multiClassScriptPath) {
+        this.multiLabelConfigPath = multiLabelConfigPath;
+        this.multiLabelScriptPath = multiLabelScriptPath;
+        this.multiClassConfigPath = multiClassConfigPath;
+        this.multiClassScriptPath = multiClassScriptPath;
         loadConfigs();
         setLayout(new BorderLayout());
         setBorder(new EmptyBorder(10, 10, 10, 10));
@@ -124,9 +149,9 @@ public class AITechniquePanel extends JPanel {
     }
 
     private void loadConfigs() {
-        multiLabelConfig = loadConfigFile(MULTILABEL_CONFIG_PATH, PROBLEM_MULTI_LABEL);
+        multiLabelConfig = loadConfigFile(multiLabelConfigPath, PROBLEM_MULTI_LABEL);
         multiLabelModels = ensureObject(multiLabelConfig, "models");
-        multiClassConfig = loadConfigFile(MULTICLASS_CONFIG_PATH, PROBLEM_MULTI_CLASS);
+        multiClassConfig = loadConfigFile(multiClassConfigPath, PROBLEM_MULTI_CLASS);
         multiClassModels = ensureObject(multiClassConfig, "models");
         ensureObject(multiClassConfig, "feature_engineering");
         ensureObject(multiLabelConfig, "data");
@@ -218,7 +243,9 @@ public class AITechniquePanel extends JPanel {
 
     private JComponent createMultiLabelTabs() {
         JTabbedPane tabs = new JTabbedPane();
+        tabs.addTab("General", wrapTab(createMultiLabelGeneralPanel()));
         tabs.addTab("Data", wrapTab(createMultiLabelDataPanel()));
+        tabs.addTab("Feature Engineering", wrapTab(createFeatureEngineeringPanel()));
         tabs.addTab("Random Forest", wrapTab(createRandomForestPanel()));
         tabs.addTab("Logistic Regression", wrapTab(createLogisticPanel()));
         tabs.addTab("Multinomial NB", wrapTab(createMultinomialPanel()));
@@ -226,6 +253,14 @@ public class AITechniquePanel extends JPanel {
         tabs.addTab("MLP", wrapTab(createMlpPanel()));
         tabs.addTab("CNN", wrapTab(createCnnPanel()));
         return tabs;
+    }
+
+    private JComponent createMultiLabelGeneralPanel() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        int row = 0;
+        mlExperimentNameField = new JTextField(20);
+        addRow(panel, row++, "Experiment Name", mlExperimentNameField);
+        return panel;
     }
 
     private JComponent createMultiLabelDataPanel() {
@@ -237,6 +272,28 @@ public class AITechniquePanel extends JPanel {
         addFullRow(panel, row++, mlRunUnbalancedBox);
         addFullRow(panel, row++, mlRunBalancedBox);
         addRow(panel, row++, "Balanced target count", mlBalancedTargetSpinner);
+        return panel;
+    }
+
+    private JComponent createFeatureEngineeringPanel() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        int row = 0;
+        mlTopKSpinner = createIntSpinner(50, 10, 1000, 10);
+        addRow(panel, row++, "Top K features", mlTopKSpinner);
+        mlTopKPlotSpinner = createIntSpinner(20, 5, 100, 5);
+        addRow(panel, row++, "Top K features to plot", mlTopKPlotSpinner);
+        mlMaxWordsPerLabelSpinner = createIntSpinner(50, 10, 200, 10);
+        addRow(panel, row++, "Max words per label", mlMaxWordsPerLabelSpinner);
+        mlUseWordcloudVocabBox = new JCheckBox("Use wordcloud vocabulary");
+        addFullRow(panel, row++, mlUseWordcloudVocabBox);
+        mlTfidfMinDfSpinner = createIntSpinner(1, 1, 10, 1);
+        addRow(panel, row++, "TF-IDF min_df", mlTfidfMinDfSpinner);
+        mlTfidfUseIdfBox = new JCheckBox("TF-IDF use IDF");
+        addFullRow(panel, row++, mlTfidfUseIdfBox);
+        mlTfidfNgramMinSpinner = createIntSpinner(1, 1, 3, 1);
+        addRow(panel, row++, "TF-IDF ngram min", mlTfidfNgramMinSpinner);
+        mlTfidfNgramMaxSpinner = createIntSpinner(2, 1, 5, 1);
+        addRow(panel, row++, "TF-IDF ngram max", mlTfidfNgramMaxSpinner);
         return panel;
     }
 
@@ -491,15 +548,40 @@ public class AITechniquePanel extends JPanel {
     private JPanel createActionBar() {
         JPanel container = new JPanel(new BorderLayout());
 
-        JPanel statusPanel = new JPanel(new BorderLayout(8, 0));
+        JPanel statusPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(2, 4, 2, 4);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+        
+        // Overall progress
+        gbc.gridx = 0; gbc.gridy = 0; gbc.anchor = GridBagConstraints.WEST;
         runStatusLabel = new JLabel("Idle");
+        statusPanel.add(runStatusLabel, gbc);
+        
+        gbc.gridx = 1; gbc.gridy = 0;
         runProgressBar = new JProgressBar();
         runProgressBar.setPreferredSize(new Dimension(180, 16));
         runProgressBar.setStringPainted(true);
         runProgressBar.setString("Idle");
         runProgressBar.setValue(0);
-        statusPanel.add(runStatusLabel, BorderLayout.WEST);
-        statusPanel.add(runProgressBar, BorderLayout.CENTER);
+        statusPanel.add(runProgressBar, gbc);
+        
+        // Task-specific progress
+        gbc.gridx = 0; gbc.gridy = 1; gbc.anchor = GridBagConstraints.WEST;
+        taskStatusLabel = new JLabel("");
+        taskStatusLabel.setFont(taskStatusLabel.getFont().deriveFont(Font.PLAIN, 10f));
+        taskStatusLabel.setForeground(Color.DARK_GRAY);
+        statusPanel.add(taskStatusLabel, gbc);
+        
+        gbc.gridx = 1; gbc.gridy = 1;
+        taskProgressBar = new JProgressBar();
+        taskProgressBar.setPreferredSize(new Dimension(180, 12));
+        taskProgressBar.setStringPainted(true);
+        taskProgressBar.setString("");
+        taskProgressBar.setValue(0);
+        taskProgressBar.setVisible(false);
+        statusPanel.add(taskProgressBar, gbc);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton resetButton = new JButton("Reset");
@@ -550,6 +632,13 @@ public class AITechniquePanel extends JPanel {
     }
 
     private void handleRun(ActionEvent event) {
+        // Validate config before running
+        String validationError = validateConfig();
+        if (validationError != null) {
+            JOptionPane.showMessageDialog(this, validationError, "Configuration Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
         if (!saveConfigToFile(false)) {
             return;
         }
@@ -561,9 +650,9 @@ public class AITechniquePanel extends JPanel {
             sourceButton.setEnabled(false);
             sourceButton.setText("Running...");
         }
-        setProgressState("Launching Python", true, 40, Color.BLUE);
+        setProgressState("Initializing...", false, 0, Color.BLUE);
 
-        SwingWorker<Void, Void> worker = new SwingWorker<>() {
+        SwingWorker<Void, String> worker = new SwingWorker<>() {
             private String outputText = "";
             private String errorMessage;
             private int exitCode = -1;
@@ -576,6 +665,13 @@ public class AITechniquePanel extends JPanel {
                     errorMessage = ex.getMessage();
                 }
                 return null;
+            }
+
+            @Override
+            protected void process(java.util.List<String> chunks) {
+                for (String line : chunks) {
+                    parseAndUpdateProgress(line);
+                }
             }
 
             private String executePythonScript() throws IOException, InterruptedException {
@@ -599,6 +695,7 @@ public class AITechniquePanel extends JPanel {
                     String line;
                     while ((line = reader.readLine()) != null) {
                         outputBuilder.append(line).append(System.lineSeparator());
+                        publish(line); // Send line to UI for real-time processing
                     }
                 }
                 exitCode = process.waitFor();
@@ -647,12 +744,14 @@ public class AITechniquePanel extends JPanel {
         String configPath = getActiveConfigPath();
         try (FileWriter writer = new FileWriter(configPath)) {
             writer.write(activeConfig.toString(2));
-            if (showSuccessMessage) {
+            if (showSuccessMessage && !GraphicsEnvironment.isHeadless()) {
                 JOptionPane.showMessageDialog(this, "AI configuration saved successfully.");
             }
             return true;
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Unable to save configuration: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            if (!GraphicsEnvironment.isHeadless()) {
+                JOptionPane.showMessageDialog(this, "Unable to save configuration: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
             return false;
         }
     }
@@ -667,6 +766,49 @@ public class AITechniquePanel extends JPanel {
         JOptionPane.showMessageDialog(this, scrollPane, title, messageType);
     }
 
+    private void parseAndUpdateProgress(String line) {
+        // Parse structured log markers: [PROGRESS:overall:percent:message] or [TASK:model:percent:message]
+        if (line.contains("[PROGRESS:")) {
+            int start = line.indexOf("[PROGRESS:") + 10;
+            int end = line.indexOf("]", start);
+            if (end > start) {
+                String[] parts = line.substring(start, end).split(":", 4);
+                if (parts.length >= 3) {
+                    try {
+                        int percent = Integer.parseInt(parts[1]);
+                        String message = parts.length > 2 ? parts[2] : "";
+                        SwingUtilities.invokeLater(() -> {
+                            runProgressBar.setIndeterminate(false);
+                            runProgressBar.setValue(percent);
+                            runProgressBar.setString(message);
+                            runStatusLabel.setText(message);
+                            runStatusLabel.setForeground(Color.BLUE);
+                        });
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+        } else if (line.contains("[TASK:")) {
+            int start = line.indexOf("[TASK:") + 6;
+            int end = line.indexOf("]", start);
+            if (end > start) {
+                String[] parts = line.substring(start, end).split(":", 4);
+                if (parts.length >= 3) {
+                    try {
+                        int percent = Integer.parseInt(parts[1]);
+                        String message = parts.length > 2 ? parts[2] : "";
+                        SwingUtilities.invokeLater(() -> {
+                            taskProgressBar.setVisible(true);
+                            taskProgressBar.setIndeterminate(false);
+                            taskProgressBar.setValue(percent);
+                            taskProgressBar.setString(message);
+                            taskStatusLabel.setText(parts[0]);
+                        });
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+        }
+    }
+
     private void setProgressState(String text, boolean indeterminate, int value, Color color) {
         if (runProgressBar != null) {
             runProgressBar.setIndeterminate(indeterminate);
@@ -679,6 +821,13 @@ public class AITechniquePanel extends JPanel {
         if (runStatusLabel != null) {
             runStatusLabel.setText(text);
             runStatusLabel.setForeground(color);
+        }
+        if (taskProgressBar != null) {
+            taskProgressBar.setVisible(false);
+            taskProgressBar.setValue(0);
+        }
+        if (taskStatusLabel != null) {
+            taskStatusLabel.setText("");
         }
     }
 
@@ -719,10 +868,25 @@ public class AITechniquePanel extends JPanel {
         JSONObject traditional = ensureObject(multiLabelModels, "traditional_ml");
         JSONObject tradCvByModel = ensureObject(traditional, "run_cross_validation_by_model");
         JSONObject data = ensureObject(multiLabelConfig, "data");
+        JSONObject featureEng = ensureObject(multiLabelConfig, "feature_engineering");
+        JSONObject tfidf = ensureObject(featureEng, "tfidf");
 
+        mlExperimentNameField.setText(multiLabelConfig.optString("experiment_name", "Multi-Label Experiment"));
         mlRunUnbalancedBox.setSelected(data.optBoolean("run_unbalanced", true));
         mlRunBalancedBox.setSelected(data.optBoolean("run_balanced", true));
         mlBalancedTargetSpinner.setValue(data.optInt("balanced_target_count", 600));
+        
+        mlTopKSpinner.setValue(featureEng.optInt("top_k", 50));
+        mlTopKPlotSpinner.setValue(featureEng.optInt("top_k_plot", 20));
+        mlMaxWordsPerLabelSpinner.setValue(featureEng.optInt("max_words_per_label", 50));
+        mlUseWordcloudVocabBox.setSelected(featureEng.optBoolean("use_wordcloud_vocabulary", true));
+        mlTfidfMinDfSpinner.setValue(tfidf.optInt("min_df", 1));
+        mlTfidfUseIdfBox.setSelected(tfidf.optBoolean("use_idf", true));
+        org.json.JSONArray ngramRange = tfidf.optJSONArray("ngram_range");
+        if (ngramRange != null && ngramRange.length() == 2) {
+            mlTfidfNgramMinSpinner.setValue(ngramRange.optInt(0, 1));
+            mlTfidfNgramMaxSpinner.setValue(ngramRange.optInt(1, 2));
+        }
 
         JSONObject randomForest = ensureObject(traditional, "random_forest");
         mlRandomForestEnabledBox.setSelected(randomForest.optBoolean("enabled", true));
@@ -854,10 +1018,25 @@ public class AITechniquePanel extends JPanel {
         boolean logisticEnabled = mlLogisticEnabledBox.isSelected();
         boolean nbEnabled = mlMultinomialEnabledBox.isSelected();
 
+        multiLabelConfig.put("experiment_name", mlExperimentNameField.getText().trim());
+        
         JSONObject data = ensureObject(multiLabelConfig, "data");
         data.put("run_unbalanced", mlRunUnbalancedBox.isSelected());
         data.put("run_balanced", mlRunBalancedBox.isSelected());
         data.put("balanced_target_count", getInt(mlBalancedTargetSpinner));
+        
+        JSONObject featureEng = ensureObject(multiLabelConfig, "feature_engineering");
+        featureEng.put("top_k", getInt(mlTopKSpinner));
+        featureEng.put("top_k_plot", getInt(mlTopKPlotSpinner));
+        featureEng.put("max_words_per_label", getInt(mlMaxWordsPerLabelSpinner));
+        featureEng.put("use_wordcloud_vocabulary", mlUseWordcloudVocabBox.isSelected());
+        JSONObject tfidf = ensureObject(featureEng, "tfidf");
+        tfidf.put("min_df", getInt(mlTfidfMinDfSpinner));
+        tfidf.put("use_idf", mlTfidfUseIdfBox.isSelected());
+        org.json.JSONArray ngramRange = new org.json.JSONArray();
+        ngramRange.put(getInt(mlTfidfNgramMinSpinner));
+        ngramRange.put(getInt(mlTfidfNgramMaxSpinner));
+        tfidf.put("ngram_range", ngramRange);
 
         JSONObject randomForest = ensureObject(traditional, "random_forest");
         randomForest.put("enabled", rfEnabled);
@@ -980,11 +1159,24 @@ public class AITechniquePanel extends JPanel {
     }
 
     private String getActiveConfigPath() {
-        return isMultiClassSelected() ? MULTICLASS_CONFIG_PATH : MULTILABEL_CONFIG_PATH;
+        return isMultiClassSelected() ? multiClassConfigPath : multiLabelConfigPath;
     }
 
     private String getActiveScriptPath() {
-        return isMultiClassSelected() ? MULTICLASS_SCRIPT_PATH : MULTILABEL_SCRIPT_PATH;
+        return isMultiClassSelected() ? multiClassScriptPath : multiLabelScriptPath;
+    }
+
+    // Test hooks
+    void persistInputsToModelForTest() {
+        persistInputsToModel();
+    }
+
+    JSONObject getMultiLabelConfigForTest() {
+        return multiLabelConfig;
+    }
+
+    JSONObject getMultiClassConfigForTest() {
+        return multiClassConfig;
     }
 
     private void syncMultiClassEnabled() {
@@ -1033,6 +1225,68 @@ public class AITechniquePanel extends JPanel {
         JSpinner spinner = new JSpinner(model);
         spinner.setEditor(new JSpinner.NumberEditor(spinner, pattern));
         return spinner;
+    }
+
+    private String validateConfig() {
+        persistInputsToModel();
+        JSONObject activeConfig = getActiveConfig();
+        
+        // Check experiment name
+        String expName = activeConfig.optString("experiment_name", "").trim();
+        if (expName.isEmpty()) {
+            return "Experiment name cannot be empty.";
+        }
+        
+        // Check at least one data type is selected
+        JSONObject data = activeConfig.optJSONObject("data");
+        if (data != null) {
+            boolean runUnbalanced = data.optBoolean("run_unbalanced", false);
+            boolean runBalanced = data.optBoolean("run_balanced", false);
+            if (!runUnbalanced && !runBalanced) {
+                return "At least one data type (Balanced or Unbalanced) must be selected.";
+            }
+        }
+        
+        // Check at least one model is enabled
+        JSONObject models = activeConfig.optJSONObject("models");
+        if (models != null && isMultiClassSelected()) {
+            // Multi-class validation
+            JSONObject traditional = models.optJSONObject("traditional");
+            JSONObject bert = models.optJSONObject("bert");
+            boolean anyEnabled = false;
+            if (traditional != null) {
+                anyEnabled = traditional.optJSONObject("logistic_regression").optBoolean("enabled", false) ||
+                            traditional.optJSONObject("random_forest").optBoolean("enabled", false) ||
+                            traditional.optJSONObject("linear_svm").optBoolean("enabled", false) ||
+                            traditional.optJSONObject("multinomial_nb").optBoolean("enabled", false);
+            }
+            if (bert != null && bert.optBoolean("enabled", false)) {
+                anyEnabled = true;
+            }
+            if (!anyEnabled) {
+                return "At least one model must be enabled.";
+            }
+        } else if (models != null) {
+            // Multi-label validation
+            JSONObject traditional = models.optJSONObject("traditional_ml");
+            JSONObject deepLearning = models.optJSONObject("deep_learning");
+            boolean anyEnabled = false;
+            if (traditional != null) {
+                anyEnabled = traditional.optJSONObject("random_forest").optBoolean("enabled", false) ||
+                            traditional.optJSONObject("logistic_regression").optBoolean("enabled", false) ||
+                            traditional.optJSONObject("multinomial_nb").optBoolean("enabled", false);
+            }
+            if (deepLearning != null) {
+                anyEnabled = anyEnabled || 
+                            deepLearning.optJSONObject("mlp").optBoolean("enabled", false) ||
+                            deepLearning.optJSONObject("cnn").optBoolean("enabled", false);
+            }
+            if (!anyEnabled) {
+                return "At least one model must be enabled.";
+            }
+        }
+        
+        return null; // No errors
     }
 
     private void addRow(JPanel panel, int row, String label, JComponent component) {

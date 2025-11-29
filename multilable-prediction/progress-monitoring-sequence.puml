@@ -1,0 +1,124 @@
+@startuml Real-Time Progress Monitoring
+!theme plain
+
+title Real-Time Progress Monitoring Architecture
+
+actor User
+participant "Java UI\n(AITechniquePanel)" as UI
+participant "SwingWorker\n(Background Thread)" as Worker
+participant "Python Process\n(configurable_main.py)" as Python
+participant "Progress Bars\n(EDT)" as EDT
+
+User -> UI: Click "Run" button
+activate UI
+
+UI -> Worker: Start SwingWorker
+activate Worker
+note right: SwingWorker<Void, String>\n• doInBackground()\n• process(chunks)\n• done()
+
+Worker -> Python: Execute Python script
+activate Python
+
+group Progress Logging
+    Python -> Python: log_progress(0, "Starting...")
+    Python --> Worker: stdout: [PROGRESS:overall:0:Starting...]
+    Worker -> EDT: publish("PROGRESS...")
+    activate EDT
+    EDT -> UI: Update runProgressBar(0%)
+    EDT -> UI: Update runStatusLabel("Starting...")
+    EDT --> Worker: UI updated
+    deactivate EDT
+    
+    Python -> Python: log_progress(10, "Loading data...")
+    Python --> Worker: stdout: [PROGRESS:overall:10:Loading data...]
+    Worker -> EDT: publish("PROGRESS...")
+    activate EDT
+    EDT -> UI: Update runProgressBar(10%)
+    EDT -> UI: Update runStatusLabel("Loading data...")
+    EDT -> UI: Reset taskProgressBar(0%)
+    EDT --> Worker: UI updated
+    deactivate EDT
+end
+
+group Model Training Progress
+    Python -> Python: log_progress(50, "Training models...")
+    Python --> Worker: stdout: [PROGRESS:overall:50:Training models...]
+    Worker -> EDT: publish("PROGRESS...")
+    activate EDT
+    EDT -> UI: Update runProgressBar(50%)
+    EDT -> UI: Update runStatusLabel("Training models...")
+    EDT --> Worker: UI updated
+    deactivate EDT
+    
+    Python -> Python: log_task("RandomForest", 0, "Training...")
+    Python --> Worker: stdout: [TASK:RandomForest:0:Training...]
+    Worker -> EDT: publish("TASK...")
+    activate EDT
+    EDT -> UI: Update taskProgressBar(0%)
+    EDT -> UI: Update taskStatusLabel("RandomForest")
+    EDT --> Worker: UI updated
+    deactivate EDT
+    
+    Python -> Python: log_task("RandomForest", 100, "Complete")
+    Python --> Worker: stdout: [TASK:RandomForest:100:Complete]
+    Worker -> EDT: publish("TASK...")
+    activate EDT
+    EDT -> UI: Update taskProgressBar(100%)
+    EDT --> Worker: UI updated
+    deactivate EDT
+end
+
+group Completion
+    Python -> Python: log_progress(100, "Experiment complete!")
+    Python --> Worker: stdout: [PROGRESS:overall:100:Experiment complete!]
+    Worker -> EDT: publish("PROGRESS...")
+    activate EDT
+    EDT -> UI: Update runProgressBar(100%)
+    EDT -> UI: Update runStatusLabel("Complete")
+    EDT --> Worker: UI updated
+    deactivate EDT
+    
+    Python --> Worker: Process exits
+    deactivate Python
+    
+    Worker -> EDT: done() - Update PredictionPanel
+    activate EDT
+    EDT -> UI: Refresh reports list
+    EDT --> Worker: Complete
+    deactivate EDT
+    
+    Worker --> UI: Finished
+    deactivate Worker
+end
+
+User <-- UI: Show completion message
+deactivate UI
+
+legend right
+    |= Component |= Responsibility |
+    | Python | Emit structured log markers |
+    | SwingWorker | Stream output, parse logs |
+    | EDT | Update UI components safely |
+    | Progress Bars | Display real-time feedback |
+endlegend
+
+note over Python
+    **Log Format:**
+    [PROGRESS:overall:percent:message]
+    [TASK:model_name:percent:message]
+end note
+
+note over Worker
+    **Parsing Logic:**
+    • Extracts percent and message
+    • Publishes to EDT via process()
+    • Non-blocking UI updates
+end note
+
+note over UI
+    **Dual Progress Display:**
+    ├─ Overall: Workflow stages (0-100%)
+    └─ Task: Per-model progress (0-100%)
+end note
+
+@enduml
