@@ -9,6 +9,7 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -16,6 +17,9 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
 
 public class AITechniquePanel extends JPanel {
     public static final String DEFAULT_MULTILABEL_CONFIG_PATH = "multilable-prediction/configs/quick_test.json";
@@ -586,10 +590,18 @@ public class AITechniquePanel extends JPanel {
         taskProgressBar.setVisible(false);
         statusPanel.add(taskProgressBar, gbc);
 
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JPanel leftActions = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JButton openReportButton = new JButton("Open Report");
+        JButton deleteReportButton = new JButton("Delete Report");
+        openReportButton.addActionListener(this::handleOpenReport);
+        deleteReportButton.addActionListener(this::handleDeleteReport);
+        leftActions.add(openReportButton);
+        leftActions.add(deleteReportButton);
+
+        JPanel rightActions = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton resetButton = new JButton("Reset");
         JButton previewButton = new JButton("Preview JSON");
-        JButton saveButton = new JButton("Save");
+        JButton saveConfigButton = new JButton("Save Config");
         JButton runButton = new JButton("Run");
         runButton.setBackground(new Color(144, 238, 144));
         runButton.setOpaque(true);
@@ -597,15 +609,20 @@ public class AITechniquePanel extends JPanel {
 
         resetButton.addActionListener(this::handleReset);
         previewButton.addActionListener(this::handlePreview);
-        saveButton.addActionListener(this::handleSave);
+        saveConfigButton.addActionListener(this::handleSave);
         runButton.addActionListener(this::handleRun);
 
-        actions.add(resetButton);
-        actions.add(previewButton);
-        actions.add(saveButton);
-        actions.add(runButton);
+        rightActions.add(resetButton);
+        rightActions.add(previewButton);
+        rightActions.add(saveConfigButton);
+        rightActions.add(runButton);
+        
+        JPanel actionsContainer = new JPanel(new BorderLayout());
+        actionsContainer.add(leftActions, BorderLayout.WEST);
+        actionsContainer.add(rightActions, BorderLayout.EAST);
+        
         container.add(statusPanel, BorderLayout.WEST);
-        container.add(actions, BorderLayout.EAST);
+        container.add(actionsContainer, BorderLayout.EAST);
         return container;
     }
 
@@ -744,30 +761,101 @@ public class AITechniquePanel extends JPanel {
     private boolean saveConfigToFile(boolean showSuccessMessage) {
         persistInputsToModel();
         
-        // Also save feature/sample settings if panel is available
-        if (featureSamplePanel != null) {
-            featureSamplePanel.saveSilently();
-        }
-        
-        // Also save visualization settings if panel is available
-        if (visualizationPanel != null) {
-            visualizationPanel.saveSilently();
-        }
-        
         JSONObject activeConfig = getActiveConfig();
         String configPath = getActiveConfigPath();
         try (FileWriter writer = new FileWriter(configPath)) {
             writer.write(activeConfig.toString(2));
-            if (showSuccessMessage && !GraphicsEnvironment.isHeadless()) {
-                JOptionPane.showMessageDialog(this, "Configuration saved successfully (all tabs).");
-            }
-            return true;
         } catch (Exception e) {
             if (!GraphicsEnvironment.isHeadless()) {
                 JOptionPane.showMessageDialog(this, "Unable to save configuration: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
             return false;
         }
+        
+        // Save feature/sample settings AFTER to avoid being overwritten
+        if (featureSamplePanel != null) {
+            featureSamplePanel.saveSilently();
+        }
+        
+        // Also save visualization settings
+        if (visualizationPanel != null) {
+            visualizationPanel.saveSilently();
+        }
+        
+        if (showSuccessMessage && !GraphicsEnvironment.isHeadless()) {
+            JOptionPane.showMessageDialog(this, "Configuration saved successfully (all tabs).");
+        }
+        return true;
+    }
+
+    private void handleOpenReport(ActionEvent event) {
+        File latestReport = findLatestReportDir();
+        if (latestReport == null) {
+            JOptionPane.showMessageDialog(this, "No reports found.", "Info", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        File htmlFile = new File(latestReport, "report.html");
+        if (htmlFile.exists()) {
+            try {
+                Desktop.getDesktop().browse(htmlFile.toURI());
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(this, "Failed to open report: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } else {
+            JOptionPane.showMessageDialog(this, "Report file not found in: " + latestReport.getName(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void handleDeleteReport(ActionEvent event) {
+        File latestReport = findLatestReportDir();
+        if (latestReport == null) {
+            JOptionPane.showMessageDialog(this, "No reports found to delete.", "Info", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        int confirm = JOptionPane.showConfirmDialog(this, 
+            "Delete report: " + latestReport.getName() + "?", 
+            "Confirm Delete", 
+            JOptionPane.YES_NO_OPTION);
+        if (confirm == JOptionPane.YES_OPTION) {
+            try {
+                Files.walk(latestReport.toPath())
+                    .sorted(Comparator.reverseOrder())
+                    .map(Path::toFile)
+                    .forEach(File::delete);
+                JOptionPane.showMessageDialog(this, "Report deleted successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
+                PredictionPanel.refreshPanel();
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(this, "Failed to delete report: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private File findLatestReportDir() {
+        List<String> reportDirs = Arrays.asList(
+            "multilable-prediction/output/reports",
+            "software-change-type-prediction-main/output/reports"
+        );
+        
+        File latestDir = null;
+        long latestTime = 0;
+        
+        for (String dirPath : reportDirs) {
+            File reportsDir = new File(dirPath);
+            if (!reportsDir.exists() || !reportsDir.isDirectory()) {
+                continue;
+            }
+            File[] dirs = reportsDir.listFiles(File::isDirectory);
+            if (dirs != null) {
+                for (File dir : dirs) {
+                    long modified = dir.lastModified();
+                    if (modified > latestTime) {
+                        latestTime = modified;
+                        latestDir = dir;
+                    }
+                }
+            }
+        }
+        return latestDir;
     }
 
     private void showProcessOutput(String title, String output, int messageType) {

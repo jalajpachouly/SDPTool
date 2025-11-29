@@ -87,11 +87,7 @@ public class VisualizationPanel extends JPanel {
             saveConfig(path, config, title, false);
         });
 
-        JButton saveButton = new JButton("Save " + title + " visuals");
-        saveButton.addActionListener(e -> onSave.run());
-
         wrapper.add(grid, BorderLayout.CENTER);
-        wrapper.add(saveButton, BorderLayout.SOUTH);
         return wrapper;
     }
 

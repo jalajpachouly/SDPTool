@@ -191,13 +191,10 @@ public class FeatureSamplePanel extends JPanel {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton resetButton = new JButton("Reset");
         JButton previewButton = new JButton("Preview JSON");
-        JButton saveButton = new JButton("Save");
         resetButton.addActionListener(this::handleReset);
         previewButton.addActionListener(this::handlePreview);
-        saveButton.addActionListener(this::handleSave);
         panel.add(resetButton);
         panel.add(previewButton);
-        panel.add(saveButton);
         return panel;
     }
 
