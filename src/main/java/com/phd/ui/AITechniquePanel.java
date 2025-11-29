@@ -550,7 +550,7 @@ public class AITechniquePanel extends JPanel {
         
         // Overall progress
         gbc.gridx = 0; gbc.gridy = 0; gbc.anchor = GridBagConstraints.WEST;
-        runStatusLabel = new JLabel("Idle");
+        runStatusLabel = new JLabel("Status:");
         statusPanel.add(runStatusLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = 0;
@@ -805,7 +805,7 @@ public class AITechniquePanel extends JPanel {
                             runProgressBar.setIndeterminate(false);
                             runProgressBar.setValue(percent);
                             runProgressBar.setString(message);
-                            runStatusLabel.setText("Status: Running");
+                            runStatusLabel.setText("Status:");
                             runStatusLabel.setForeground(Color.BLUE);
                         });
                     } catch (NumberFormatException ignored) {}
@@ -843,7 +843,7 @@ public class AITechniquePanel extends JPanel {
             runProgressBar.setString(text);
         }
         if (runStatusLabel != null) {
-            runStatusLabel.setText(text);
+            runStatusLabel.setText("Status:");
             runStatusLabel.setForeground(color);
         }
         if (taskProgressBar != null) {

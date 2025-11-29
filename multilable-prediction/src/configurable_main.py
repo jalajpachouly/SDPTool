@@ -1139,8 +1139,8 @@ def main(
                     render_img('f1_comparison.png', 'F1 Score by Label (Balanced vs Unbalanced)')
                     chart_names_for_metadata.append('f1_comparison.png')
 
-                # Per-data-type summaries (NOW 3.7)
-                f.write("<h3>3.7 Per Data-Type Model Summaries</h3>")
+                # Per-data-type macro summaries (NOW 3.7)
+                f.write("<h3>3.7 Per Data-Type Macro Summaries</h3>")
                 for data_type in data_types:
                     chart_name = summary_charts.get(data_type)
                     if chart_name:
@@ -1485,7 +1485,17 @@ if __name__ == "__main__":
                 chart_names_for_metadata.append(Path(comparison_chart_path).name)
                 f.write("<h3>3.4 Macro F1-Score by Model</h3>")
                 f.write(f"<div><img src='{Path(comparison_chart_path).name}' style='max-width:600px;'></div><br>")
-            f.write("<h3>3.5 Per Data-Type Summaries</h3>")
+            recall_comp_chart = (cross_metric_charts or {}).get('Recall')
+            if recall_comp_chart:
+                chart_names_for_metadata.append(Path(recall_comp_chart).name)
+                f.write("<h3>3.5 Macro Recall by Model (Balanced vs Unbalanced)</h3>")
+                f.write(f"<div><img src='{Path(recall_comp_chart).name}' style='max-width:600px;'></div><br>")
+            hamming_comp_chart = (cross_metric_charts or {}).get('Hamming Loss')
+            if hamming_comp_chart:
+                chart_names_for_metadata.append(Path(hamming_comp_chart).name)
+                f.write("<h3>3.6 Macro Hamming Loss by Model (Balanced vs Unbalanced)</h3>")
+                f.write(f"<div><img src='{Path(hamming_comp_chart).name}' style='max-width:600px;'></div><br>")
+            f.write("<h3>3.7 Per Data-Type Macro Summaries</h3>")
             for data_type in data_types:
                 chart_name = summary_charts.get(data_type)
                 if chart_name:
@@ -1495,7 +1505,7 @@ if __name__ == "__main__":
             for data_type in data_types:
                 charts = performance_charts_by_type.get(data_type) or []
                 if charts:
-                    f.write(f"<h3>3.6 Additional Performance Charts ({data_type})</h3>")
+                    f.write(f"<h3>3.8 Additional Performance Charts ({data_type})</h3>")
                     for chart in charts:
                         chart_names_for_metadata.append(chart)
                         f.write(f"<div><img src='{chart}' style='max-width:600px;'></div><br>")
