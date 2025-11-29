@@ -14,7 +14,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 
 public class FeatureSamplePanel extends JPanel {
-    private static final String DEFAULT_CONFIG_PATH = "multilable-prediction/configs/quick_test.json";
+    private static final String DEFAULT_CONFIG_PATH = "multilable-prediction/configs/ui_config.json";
     private final String configPath;
 
     private JSONObject config;

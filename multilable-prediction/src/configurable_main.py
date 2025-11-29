@@ -375,20 +375,8 @@ def main(
     performance_charts = []
     fold_metrics = {}
     
-    if config is None:
-        # Use hardcoded defaults (original main.py behavior)
-        csv_path = str(DATASET_PATH)
-        sample_size = None
-        top_k = 50
-        run_visualizations = True
-        run_ml = {'MultinomialNB': True, 'LogisticRegression': True, 'RandomForest': True}
-        run_dl_mlp = True
-        run_dl_cnn = True
-        run_cv_flags = {'MultinomialNB': True, 'LogisticRegression': True, 'RandomForest': True}
-        cv_splits = 10
-    else:
-        # Use JSON config
-        project_root = Path(__file__).parent.parent
+    # Use JSON config
+    project_root = Path(__file__).parent.parent
         csv_path = str(project_root / config['data']['dataset_path'])
         sample_size = config['data'].get('sample_size')
         balanced_target_count = config['data'].get('balanced_target_count', 600)

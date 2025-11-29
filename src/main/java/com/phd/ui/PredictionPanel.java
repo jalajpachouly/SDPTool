@@ -39,10 +39,23 @@ public class PredictionPanel extends JPanel {
         instance = this;
         setLayout(new BorderLayout(0, 12));
         setBorder(new EmptyBorder(10, 10, 10, 10));
+        
+        JPanel headerPanel = new JPanel(new BorderLayout());
         JLabel title = new JLabel("Prediction Runs");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 18f));
         title.setBorder(new EmptyBorder(0, 0, 8, 0));
-        add(title, BorderLayout.NORTH);
+        
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        JButton openReportButton = new JButton("Open Latest Report");
+        JButton deleteReportButton = new JButton("Delete Latest Report");
+        openReportButton.addActionListener(e -> handleOpenLatestReport());
+        deleteReportButton.addActionListener(e -> handleDeleteLatestReport());
+        buttonPanel.add(openReportButton);
+        buttonPanel.add(deleteReportButton);
+        
+        headerPanel.add(title, BorderLayout.WEST);
+        headerPanel.add(buttonPanel, BorderLayout.EAST);
+        add(headerPanel, BorderLayout.NORTH);
         runsListPanel = new JPanel();
         runsListPanel.setLayout(new BoxLayout(runsListPanel, BoxLayout.Y_AXIS));
         runsListPanel.setBorder(new EmptyBorder(0, 0, 20, 0));
@@ -293,6 +306,55 @@ public class PredictionPanel extends JPanel {
         } catch (DateTimeParseException ex) {
             return raw;
         }
+    }
+
+    private void handleOpenLatestReport() {
+        File latestReport = findLatestReportDir();
+        if (latestReport == null) {
+            JOptionPane.showMessageDialog(this, "No reports found.", "Info", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        openReport(latestReport);
+    }
+
+    private void handleDeleteLatestReport() {
+        File latestReport = findLatestReportDir();
+        if (latestReport == null) {
+            JOptionPane.showMessageDialog(this, "No reports found to delete.", "Info", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        int confirm = JOptionPane.showConfirmDialog(this,
+            "Delete report: " + latestReport.getName() + "?",
+            "Confirm Delete",
+            JOptionPane.YES_NO_OPTION);
+        if (confirm == JOptionPane.YES_OPTION) {
+            deleteRun(latestReport);
+            JOptionPane.showMessageDialog(this, "Report deleted successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
+            refreshRunsList();
+        }
+    }
+
+    private File findLatestReportDir() {
+        File latestDir = null;
+        long latestTime = 0;
+
+        for (String dirPath : REPORT_DIRS) {
+            File reportsDir = new File(dirPath);
+            if (!reportsDir.exists() || !reportsDir.isDirectory()) {
+                continue;
+            }
+            File[] dirs = reportsDir.listFiles(File::isDirectory);
+            if (dirs != null) {
+                for (File dir : dirs) {
+                    long modified = dir.lastModified();
+                    if (modified > latestTime) {
+                        latestTime = modified;
+                        latestDir = dir;
+                    }
+                }
+            }
+        }
+        return latestDir;
     }
 
     private void openReport(File runDir) {

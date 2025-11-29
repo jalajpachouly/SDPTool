@@ -9,7 +9,6 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -17,14 +16,11 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
 
 public class AITechniquePanel extends JPanel {
-    public static final String DEFAULT_MULTILABEL_CONFIG_PATH = "multilable-prediction/configs/quick_test.json";
+    public static final String DEFAULT_MULTILABEL_CONFIG_PATH = "multilable-prediction/configs/ui_config.json";
     public static final String DEFAULT_MULTILABEL_SCRIPT_PATH = "multilable-prediction/src/configurable_main.py";
-    public static final String DEFAULT_MULTICLASS_CONFIG_PATH = "software-change-type-prediction-main/configs/quick_test_multiclass.json";
+    public static final String DEFAULT_MULTICLASS_CONFIG_PATH = "software-change-type-prediction-main/configs/ui_config_multiclass.json";
     public static final String DEFAULT_MULTICLASS_SCRIPT_PATH = "software-change-type-prediction-main/src/configurable_main.py";
     private static final String PROBLEM_MULTI_LABEL = "multi_label";
     private static final String PROBLEM_MULTI_CLASS = "multi_class";
@@ -252,7 +248,6 @@ public class AITechniquePanel extends JPanel {
         JTabbedPane tabs = new JTabbedPane();
         tabs.addTab("General", wrapTab(createMultiLabelGeneralPanel()));
         tabs.addTab("Data", wrapTab(createMultiLabelDataPanel()));
-        tabs.addTab("Feature Engineering", wrapTab(createFeatureEngineeringPanel()));
         tabs.addTab("Random Forest", wrapTab(createRandomForestPanel()));
         tabs.addTab("Logistic Regression", wrapTab(createLogisticPanel()));
         tabs.addTab("Multinomial NB", wrapTab(createMultinomialPanel()));
@@ -590,15 +585,7 @@ public class AITechniquePanel extends JPanel {
         taskProgressBar.setVisible(false);
         statusPanel.add(taskProgressBar, gbc);
 
-        JPanel leftActions = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JButton openReportButton = new JButton("Open Report");
-        JButton deleteReportButton = new JButton("Delete Report");
-        openReportButton.addActionListener(this::handleOpenReport);
-        deleteReportButton.addActionListener(this::handleDeleteReport);
-        leftActions.add(openReportButton);
-        leftActions.add(deleteReportButton);
-
-        JPanel rightActions = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton resetButton = new JButton("Reset");
         JButton previewButton = new JButton("Preview JSON");
         JButton saveConfigButton = new JButton("Save Config");
@@ -612,17 +599,12 @@ public class AITechniquePanel extends JPanel {
         saveConfigButton.addActionListener(this::handleSave);
         runButton.addActionListener(this::handleRun);
 
-        rightActions.add(resetButton);
-        rightActions.add(previewButton);
-        rightActions.add(saveConfigButton);
-        rightActions.add(runButton);
-        
-        JPanel actionsContainer = new JPanel(new BorderLayout());
-        actionsContainer.add(leftActions, BorderLayout.WEST);
-        actionsContainer.add(rightActions, BorderLayout.EAST);
-        
+        actions.add(resetButton);
+        actions.add(previewButton);
+        actions.add(saveConfigButton);
+        actions.add(runButton);
         container.add(statusPanel, BorderLayout.WEST);
-        container.add(actionsContainer, BorderLayout.EAST);
+        container.add(actions, BorderLayout.EAST);
         return container;
     }
 
@@ -786,76 +768,6 @@ public class AITechniquePanel extends JPanel {
             JOptionPane.showMessageDialog(this, "Configuration saved successfully (all tabs).");
         }
         return true;
-    }
-
-    private void handleOpenReport(ActionEvent event) {
-        File latestReport = findLatestReportDir();
-        if (latestReport == null) {
-            JOptionPane.showMessageDialog(this, "No reports found.", "Info", JOptionPane.INFORMATION_MESSAGE);
-            return;
-        }
-        File htmlFile = new File(latestReport, "report.html");
-        if (htmlFile.exists()) {
-            try {
-                Desktop.getDesktop().browse(htmlFile.toURI());
-            } catch (IOException ex) {
-                JOptionPane.showMessageDialog(this, "Failed to open report: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-            }
-        } else {
-            JOptionPane.showMessageDialog(this, "Report file not found in: " + latestReport.getName(), "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    private void handleDeleteReport(ActionEvent event) {
-        File latestReport = findLatestReportDir();
-        if (latestReport == null) {
-            JOptionPane.showMessageDialog(this, "No reports found to delete.", "Info", JOptionPane.INFORMATION_MESSAGE);
-            return;
-        }
-        int confirm = JOptionPane.showConfirmDialog(this, 
-            "Delete report: " + latestReport.getName() + "?", 
-            "Confirm Delete", 
-            JOptionPane.YES_NO_OPTION);
-        if (confirm == JOptionPane.YES_OPTION) {
-            try {
-                Files.walk(latestReport.toPath())
-                    .sorted(Comparator.reverseOrder())
-                    .map(Path::toFile)
-                    .forEach(File::delete);
-                JOptionPane.showMessageDialog(this, "Report deleted successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
-                PredictionPanel.refreshPanel();
-            } catch (IOException ex) {
-                JOptionPane.showMessageDialog(this, "Failed to delete report: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-            }
-        }
-    }
-
-    private File findLatestReportDir() {
-        List<String> reportDirs = Arrays.asList(
-            "multilable-prediction/output/reports",
-            "software-change-type-prediction-main/output/reports"
-        );
-        
-        File latestDir = null;
-        long latestTime = 0;
-        
-        for (String dirPath : reportDirs) {
-            File reportsDir = new File(dirPath);
-            if (!reportsDir.exists() || !reportsDir.isDirectory()) {
-                continue;
-            }
-            File[] dirs = reportsDir.listFiles(File::isDirectory);
-            if (dirs != null) {
-                for (File dir : dirs) {
-                    long modified = dir.lastModified();
-                    if (modified > latestTime) {
-                        latestTime = modified;
-                        latestDir = dir;
-                    }
-                }
-            }
-        }
-        return latestDir;
     }
 
     private void showProcessOutput(String title, String output, int messageType) {

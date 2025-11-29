@@ -202,7 +202,7 @@ python run_configurable.py main_config.json
 
 ### Quick test (100 samples, NB only):
 ```bash
-python src/configurable_main.py configs/quick_test.json
+python src/configurable_main.py configs/ui_config.json
 ```
 
 ### Traditional ML only:
@@ -217,7 +217,7 @@ python src/configurable_main.py configs/traditional_ml_only.json
 3. **SUMMARY.md** - This file
 4. **run_configurable.py** - Launcher script
 5. **main_config.json** - Default configuration
-6. **configs/quick_test.json** - Fast testing config
+6. **configs/ui_config.json** - UI-generated configuration (bridge between Java UI and Python ML backend)
 7. **configs/traditional_ml_only.json** - ML models only config
 
 Everything is ready to use! 🎉

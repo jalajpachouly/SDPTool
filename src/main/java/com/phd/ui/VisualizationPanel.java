@@ -18,8 +18,8 @@ import java.util.Map;
  */
 public class VisualizationPanel extends JPanel {
 
-    private static final String DEFAULT_MULTILABEL_CONFIG_PATH = "multilable-prediction/configs/quick_test.json";
-    private static final String DEFAULT_MULTICLASS_CONFIG_PATH = "software-change-type-prediction-main/configs/quick_test_multiclass.json";
+    private static final String DEFAULT_MULTILABEL_CONFIG_PATH = "multilable-prediction/configs/ui_config.json";
+    private static final String DEFAULT_MULTICLASS_CONFIG_PATH = "software-change-type-prediction-main/configs/ui_config_multiclass.json";
 
     private final String multiLabelConfigPath;
     private final String multiClassConfigPath;
