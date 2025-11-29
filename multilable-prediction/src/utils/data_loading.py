@@ -49,7 +49,7 @@ def nnls_sample(df: pd.DataFrame, labels: list, target_count: int, cond_prob: np
     return sampled_df
 
 
-def load_data(csv_path: str, labels: list, sample_size: int = None, random_state: int = 42) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def load_data(csv_path: str, labels: list, sample_size: int = None, test_size: float = 0.2, random_state: int = 42) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Load the dataset from a CSV file and split it into training and testing sets using stratified splitting.
 
@@ -57,6 +57,7 @@ def load_data(csv_path: str, labels: list, sample_size: int = None, random_state
     - csv_path (str): Path to the CSV file containing the dataset.
     - labels (list): List of label column names.
     - sample_size (int, optional): Number of rows to sample from dataset (for faster testing). None means use all data.
+    - test_size (float): Proportion of dataset to use as test set (default 0.2).
     - random_state (int): Random seed for reproducibility.
 
     Returns:
@@ -103,7 +104,7 @@ def load_data(csv_path: str, labels: list, sample_size: int = None, random_state
     return X_train, X_test, y_train, y_test
 
 
-def load_data_balanced(csv_path: str, labels: list, target_count: int = 600, sample_size: int = None, random_state: int = 42) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def load_data_balanced(csv_path: str, labels: list, target_count: int = 600, sample_size: int = None, test_size: float = 0.2, random_state: int = 42) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Load the dataset from a CSV file, balance it, and split into training and testing sets.
 
@@ -112,6 +113,7 @@ def load_data_balanced(csv_path: str, labels: list, target_count: int = 600, sam
     - labels (list): List of label column names.
     - target_count (int): Desired number of samples per label for balancing.
     - sample_size (int, optional): Number of rows to sample from dataset before balancing (for faster testing). None means use all data.
+    - test_size (float): Proportion of dataset to use as test set (default 0.2).
     - random_state (int): Random seed for reproducibility.
 
     Returns:

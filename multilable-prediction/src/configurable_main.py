@@ -391,6 +391,8 @@ def main(
         project_root = Path(__file__).parent.parent
         csv_path = str(project_root / config['data']['dataset_path'])
         sample_size = config['data'].get('sample_size')
+        balanced_target_count = config['data'].get('balanced_target_count', 600)
+        test_size = config['data'].get('test_size', 0.2)
         top_k = config['feature_engineering'].get('top_k', 50)
         run_visualizations = config['visualizations']['enabled']
         
@@ -428,10 +430,15 @@ def main(
     log_progress(10, f"Loading {data_type} data...")
     try:
         if data_type == 'Balanced':
-            X_train_df, X_test_df, y_train_df, y_test_df = load_data_balanced(csv_path, LABELS, sample_size=sample_size)
+            X_train_df, X_test_df, y_train_df, y_test_df = load_data_balanced(
+                csv_path, LABELS, 
+                target_count=balanced_target_count, 
+                sample_size=sample_size,
+                test_size=test_size
+            )
             print(f"  Loaded balanced data: {len(X_train_df)} train, {len(X_test_df)} test samples")
         else:
-            X_train_df, X_test_df, y_train_df, y_test_df = load_data(csv_path, LABELS, sample_size=sample_size)
+            X_train_df, X_test_df, y_train_df, y_test_df = load_data(csv_path, LABELS, sample_size=sample_size, test_size=test_size)
             print(f"  Loaded data: {len(X_train_df)} train, {len(X_test_df)} test samples")
     except Exception as e:
         print(f"Error loading data: {e}")
