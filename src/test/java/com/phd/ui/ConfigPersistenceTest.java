@@ -103,7 +103,7 @@ class ConfigPersistenceTest {
         Files.writeString(mlConfig, new JSONObject().put("models", new JSONObject()).put("data", new JSONObject()).toString(2), StandardCharsets.UTF_8);
         Files.writeString(mcConfig, new JSONObject().put("models", new JSONObject()).put("data", new JSONObject()).toString(2), StandardCharsets.UTF_8);
 
-        AITechniquePanel panel = new AITechniquePanel(mlConfig.toString(), "ml_script", mcConfig.toString(), "mc_script");
+        AITechniquePanel panel = new AITechniquePanel(mlConfig.toString(), "ml_script", mcConfig.toString(), "mc_script", null);
 
         // Multi-label selections (tab 0)
         setSelectedTab(panel, 0);
