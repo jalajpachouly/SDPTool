@@ -18,10 +18,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 public class AITechniquePanel extends JPanel {
-    private static final String DEFAULT_MULTILABEL_CONFIG_PATH = "multilable-prediction/configs/quick_test.json";
-    private static final String DEFAULT_MULTILABEL_SCRIPT_PATH = "multilable-prediction/src/configurable_main.py";
-    private static final String DEFAULT_MULTICLASS_CONFIG_PATH = "software-change-type-prediction-main/configs/quick_test_multiclass.json";
-    private static final String DEFAULT_MULTICLASS_SCRIPT_PATH = "software-change-type-prediction-main/src/configurable_main.py";
+    public static final String DEFAULT_MULTILABEL_CONFIG_PATH = "multilable-prediction/configs/quick_test.json";
+    public static final String DEFAULT_MULTILABEL_SCRIPT_PATH = "multilable-prediction/src/configurable_main.py";
+    public static final String DEFAULT_MULTICLASS_CONFIG_PATH = "software-change-type-prediction-main/configs/quick_test_multiclass.json";
+    public static final String DEFAULT_MULTICLASS_SCRIPT_PATH = "software-change-type-prediction-main/src/configurable_main.py";
     private static final String PROBLEM_MULTI_LABEL = "multi_label";
     private static final String PROBLEM_MULTI_CLASS = "multi_class";
 
@@ -34,6 +34,8 @@ public class AITechniquePanel extends JPanel {
     private JSONObject multiClassConfig;
     private JSONObject multiLabelModels;
     private JSONObject multiClassModels;
+    
+    private VisualizationPanel visualizationPanel;
 
     private JTabbedPane problemTabs;
     private JRadioButton mlRadio;
@@ -129,10 +131,10 @@ public class AITechniquePanel extends JPanel {
 
     private boolean updatingUiValues;
     public AITechniquePanel() {
-        this(DEFAULT_MULTILABEL_CONFIG_PATH, DEFAULT_MULTILABEL_SCRIPT_PATH, DEFAULT_MULTICLASS_CONFIG_PATH, DEFAULT_MULTICLASS_SCRIPT_PATH);
+        this(DEFAULT_MULTILABEL_CONFIG_PATH, DEFAULT_MULTILABEL_SCRIPT_PATH, DEFAULT_MULTICLASS_CONFIG_PATH, DEFAULT_MULTICLASS_SCRIPT_PATH, null);
     }
 
-    public AITechniquePanel(String multiLabelConfigPath, String multiLabelScriptPath, String multiClassConfigPath, String multiClassScriptPath) {
+    public AITechniquePanel(String multiLabelConfigPath, String multiLabelScriptPath, String multiClassConfigPath, String multiClassScriptPath, VisualizationPanel visualizationPanel) {
         this.multiLabelConfigPath = multiLabelConfigPath;
         this.multiLabelScriptPath = multiLabelScriptPath;
         this.multiClassConfigPath = multiClassConfigPath;
@@ -740,12 +742,18 @@ public class AITechniquePanel extends JPanel {
 
     private boolean saveConfigToFile(boolean showSuccessMessage) {
         persistInputsToModel();
+        
+        // Also save visualization settings if panel is available
+        if (visualizationPanel != null) {
+            visualizationPanel.saveSilently();
+        }
+        
         JSONObject activeConfig = getActiveConfig();
         String configPath = getActiveConfigPath();
         try (FileWriter writer = new FileWriter(configPath)) {
             writer.write(activeConfig.toString(2));
             if (showSuccessMessage && !GraphicsEnvironment.isHeadless()) {
-                JOptionPane.showMessageDialog(this, "AI configuration saved successfully.");
+                JOptionPane.showMessageDialog(this, "Configuration saved successfully (including visualizations).");
             }
             return true;
         } catch (Exception e) {

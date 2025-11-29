@@ -105,13 +105,13 @@
     "correlation_matrix": false,
     "nb_metrics": false,
     "f1_scores": false,
-    "class_distribution": false,
+    "class_distribution": true,
     "word_clouds": false,
     "all_metrics_boxplot": false,
     "label_frequency": false,
     "top_features": false,
-    "enabled": false,
-    "description_length": false
+    "enabled": true,
+    "description_length": true
   },
   "output_directory": "output/quick_test",
   "data": {

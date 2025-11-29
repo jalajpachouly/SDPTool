@@ -55,9 +55,15 @@ public class Home extends Component {
         getCongigurationPanel(tp, config);
         getPreProcessingPanel(tp,config);
         FeatureSamplePanel featureSamplePanel = new FeatureSamplePanel();
-        AITechniquePanel aiTechniquePanel = new AITechniquePanel();
+        VisualizationPanel visualizationPanel = new VisualizationPanel();
+        AITechniquePanel aiTechniquePanel = new AITechniquePanel(
+            AITechniquePanel.DEFAULT_MULTILABEL_CONFIG_PATH,
+            AITechniquePanel.DEFAULT_MULTILABEL_SCRIPT_PATH,
+            AITechniquePanel.DEFAULT_MULTICLASS_CONFIG_PATH,
+            AITechniquePanel.DEFAULT_MULTICLASS_SCRIPT_PATH,
+            visualizationPanel
+        );
            PredictionPanel predictionPanel = new PredictionPanel();
-           VisualizationPanel visualizationPanel = new VisualizationPanel();
 
            tp.add("Feature and Sample Selection", featureSamplePanel);
            tp.add("Artificial Intelligence Techniques", aiTechniquePanel);
