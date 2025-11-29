@@ -1,15 +1,13 @@
 package com.phd.ui;
 
+import com.phd.config.ConfigManager;
 import org.json.JSONObject;
-import org.json.JSONTokener;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.awt.event.ItemEvent;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -18,52 +16,26 @@ import java.util.Map;
  */
 public class VisualizationPanel extends JPanel {
 
-    private static final String DEFAULT_MULTILABEL_CONFIG_PATH = "multilable-prediction/configs/ui_config.json";
-    private static final String DEFAULT_MULTICLASS_CONFIG_PATH = "software-change-type-prediction-main/configs/ui_config_multiclass.json";
-
-    private final String multiLabelConfigPath;
-    private final String multiClassConfigPath;
-
-    private JSONObject multiLabelConfig;
-    private JSONObject multiClassConfig;
-
     private final Map<String, JCheckBox> mlChecks = new LinkedHashMap<>();
     private final Map<String, JCheckBox> mcChecks = new LinkedHashMap<>();
 
     public VisualizationPanel() {
-        this(DEFAULT_MULTILABEL_CONFIG_PATH, DEFAULT_MULTICLASS_CONFIG_PATH);
-    }
-
-    public VisualizationPanel(String multiLabelConfigPath, String multiClassConfigPath) {
-        this.multiLabelConfigPath = multiLabelConfigPath;
-        this.multiClassConfigPath = multiClassConfigPath;
         setLayout(new BorderLayout());
         setBorder(new EmptyBorder(10, 10, 10, 10));
-        loadConfigs();
         add(buildContent(), BorderLayout.CENTER);
     }
 
-    private void loadConfigs() {
-        multiLabelConfig = loadConfig(multiLabelConfigPath);
-        multiClassConfig = loadConfig(multiClassConfigPath);
-    }
-
-    private JSONObject loadConfig(String path) {
-        try (FileReader reader = new FileReader(path)) {
-            return new JSONObject(new JSONTokener(reader));
-        } catch (Exception e) {
-            return new JSONObject();
-        }
-    }
-
     private JComponent buildContent() {
+        JSONObject multiLabelConfig = ConfigManager.getMultiLabelConfig();
+        JSONObject multiClassConfig = ConfigManager.getMultiClassConfig();
+        
         JPanel panel = new JPanel(new GridLayout(1, 2, 12, 12));
-        panel.add(buildConfigPanel("Multi-label", multiLabelConfig, mlChecks, this::handleSaveMultiLabel, multiLabelConfigPath));
-        panel.add(buildConfigPanel("Multi-class", multiClassConfig, mcChecks, this::handleSaveMultiClass, multiClassConfigPath));
+        panel.add(buildConfigPanel("Multi-label", multiLabelConfig, mlChecks, this::handleSaveMultiLabel));
+        panel.add(buildConfigPanel("Multi-class", multiClassConfig, mcChecks, this::handleSaveMultiClass));
         return panel;
     }
 
-    private JPanel buildConfigPanel(String title, JSONObject config, Map<String, JCheckBox> checkMap, Runnable onSave, String path) {
+    private JPanel buildConfigPanel(String title, JSONObject config, Map<String, JCheckBox> checkMap, Runnable onSave) {
         JPanel wrapper = new JPanel(new BorderLayout());
         wrapper.setBorder(new TitledBorder(title));
 
@@ -84,7 +56,7 @@ public class VisualizationPanel extends JPanel {
         applyValues(config, checkMap);
         attachAutoSave(checkMap, () -> {
             persistValues(config, checkMap);
-            saveConfig(path, config, title, false);
+            onSave.run();
         });
 
         wrapper.add(grid, BorderLayout.CENTER);
@@ -119,24 +91,25 @@ public class VisualizationPanel extends JPanel {
     }
 
     private void handleSaveMultiLabel() {
+        JSONObject multiLabelConfig = ConfigManager.getMultiLabelConfig();
         persistValues(multiLabelConfig, mlChecks);
-        saveConfig(multiLabelConfigPath, multiLabelConfig, "Multi-label", true);
+        try {
+            ConfigManager.saveMultiLabel();
+        } catch (Exception ex) {
+            if (!GraphicsEnvironment.isHeadless()) {
+                JOptionPane.showMessageDialog(this, "Unable to save Multi-label settings: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
     }
 
     private void handleSaveMultiClass() {
+        JSONObject multiClassConfig = ConfigManager.getMultiClassConfig();
         persistValues(multiClassConfig, mcChecks);
-        saveConfig(multiClassConfigPath, multiClassConfig, "Multi-class", true);
-    }
-
-    private void saveConfig(String path, JSONObject config, String title, boolean showMessage) {
-        try (FileWriter writer = new FileWriter(path)) {
-            writer.write(config.toString(2));
-            if (showMessage && !GraphicsEnvironment.isHeadless()) {
-                JOptionPane.showMessageDialog(this, title + " visualization settings saved.", "Saved", JOptionPane.INFORMATION_MESSAGE);
-            }
+        try {
+            ConfigManager.saveMultiClass();
         } catch (Exception ex) {
             if (!GraphicsEnvironment.isHeadless()) {
-                JOptionPane.showMessageDialog(this, "Unable to save " + title + " settings: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Unable to save Multi-class settings: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
@@ -152,9 +125,17 @@ public class VisualizationPanel extends JPanel {
 
     // Test hook: persist current checkboxes and save without dialogs
     void saveSilently() {
+        JSONObject multiLabelConfig = ConfigManager.getMultiLabelConfig();
+        JSONObject multiClassConfig = ConfigManager.getMultiClassConfig();
+        
         persistValues(multiLabelConfig, mlChecks);
-        saveConfig(multiLabelConfigPath, multiLabelConfig, "Multi-label", false);
         persistValues(multiClassConfig, mcChecks);
-        saveConfig(multiClassConfigPath, multiClassConfig, "Multi-class", false);
+        
+        try {
+            ConfigManager.saveMultiLabel();
+            ConfigManager.saveMultiClass();
+        } catch (Exception ex) {
+            System.err.println("Failed to save visualization settings: " + ex.getMessage());
+        }
     }
 }

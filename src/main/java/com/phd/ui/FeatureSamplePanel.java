@@ -1,8 +1,8 @@
 package com.phd.ui;
 
+import com.phd.config.ConfigManager;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.json.JSONTokener;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -10,13 +10,9 @@ import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.io.File;
-import java.io.FileReader;
 import java.io.FileWriter;
 
 public class FeatureSamplePanel extends JPanel {
-    private static final String DEFAULT_CONFIG_PATH = "multilable-prediction/configs/ui_config.json";
-    private final String configPath;
-
     private JSONObject config;
     private JSONObject dataConfig;
     private JSONObject featureConfig;
@@ -40,29 +36,18 @@ public class FeatureSamplePanel extends JPanel {
     private JCheckBox useIdfBox;
 
     public FeatureSamplePanel() {
-        this(DEFAULT_CONFIG_PATH);
-    }
-
-    public FeatureSamplePanel(String configPath) {
-        this.configPath = configPath;
-        loadConfig();
+        // Use shared config from ConfigManager
+        config = ConfigManager.getMultiLabelConfig();
+        dataConfig = ensureObject(config, "data");
+        featureConfig = ensureObject(config, "feature_engineering");
+        ensureObject(featureConfig, "tfidf");
+        
         setLayout(new BorderLayout());
         setBorder(new EmptyBorder(10, 10, 10, 10));
         add(createHeader(), BorderLayout.NORTH);
         add(createBody(), BorderLayout.CENTER);
         add(createActionBar(), BorderLayout.SOUTH);
         applyModelToUi();
-    }
-
-    private void loadConfig() {
-        try (FileReader reader = new FileReader(configPath)) {
-            config = new JSONObject(new JSONTokener(reader));
-        } catch (Exception e) {
-            config = new JSONObject();
-        }
-        dataConfig = ensureObject(config, "data");
-        featureConfig = ensureObject(config, "feature_engineering");
-        ensureObject(featureConfig, "tfidf");
     }
 
     private JComponent createHeader() {
@@ -208,7 +193,13 @@ public class FeatureSamplePanel extends JPanel {
     }
 
     private void handleReset(ActionEvent event) {
-        loadConfig();
+        // Reload from ConfigManager's shared config
+        config = ConfigManager.getMultiLabelConfig();
+        dataConfig = config.optJSONObject("data");
+        if (dataConfig == null) {
+            dataConfig = new JSONObject();
+            config.put("data", dataConfig);
+        }
         applyModelToUi();
     }
 
@@ -230,14 +221,12 @@ public class FeatureSamplePanel extends JPanel {
     }
 
     public void saveSilently() {
-        // Reload config first to pick up any changes from AITechniquePanel
-        loadConfig();
+        // Update the shared config object in memory
+        System.out.println("=== FeatureSamplePanel.saveSilently() ===");
         persistUiToModel();
-        try (FileWriter writer = new FileWriter(configPath)) {
-            writer.write(config.toString(2));
-        } catch (Exception e) {
-            System.err.println("Failed to save feature/sample config: " + e.getMessage());
-        }
+        
+        // Save to disk via ConfigManager
+        ConfigManager.saveMultiLabel();
     }
 
     private void applyModelToUi() {
@@ -265,7 +254,15 @@ public class FeatureSamplePanel extends JPanel {
         useIdfBox.setSelected(tfidf.optBoolean("use_idf", true));
     }
 
-    private void persistUiToModel() {
+    // Public method to sync UI values to config (for Preview functionality)
+    public void syncUiToConfig() {
+        persistUiToModel();
+    }
+
+    public void persistUiToModel() {
+        System.out.println("=== persistUiToModel() START ===");
+        System.out.println("sample_size from UI: " + getInt(sampleSizeSpinner));
+        
         dataConfig.put("dataset_path", datasetPathField.getText().trim());
         dataConfig.put("sample_size", getInt(sampleSizeSpinner));
         dataConfig.put("sample_random_state", getInt(sampleRandomSpinner));
@@ -273,6 +270,10 @@ public class FeatureSamplePanel extends JPanel {
         dataConfig.put("run_balanced", runBalancedBox.isSelected());
         dataConfig.put("run_unbalanced", runUnbalancedBox.isSelected());
         dataConfig.put("balanced_target_count", getInt(targetCountSpinner));
+        
+        System.out.println("After putting in dataConfig:");
+        System.out.println("  sample_size in dataConfig: " + dataConfig.optInt("sample_size"));
+        System.out.println("  dataConfig keys: " + dataConfig.keySet());
 
         featureConfig.put("use_feature_selection", useFeatureSelectionBox.isSelected());
         featureConfig.put("top_k", getInt(topKSpinner));
@@ -289,17 +290,8 @@ public class FeatureSamplePanel extends JPanel {
         tfidf.put("ngram_range", range);
         tfidf.put("min_df", getInt(minDfSpinner));
         tfidf.put("use_idf", useIdfBox.isSelected());
-    }
-
-    // Test hooks
-    void persistUiToModelForTest() {
-        persistUiToModel();
-    }
-
-    void saveSilentlyForTest() throws Exception {
-        try (FileWriter writer = new FileWriter(configPath)) {
-            writer.write(config.toString(2));
-        }
+        
+        System.out.println("=== persistUiToModel() END ===");
     }
 
     private JSONObject ensureObject(JSONObject parent, String key) {

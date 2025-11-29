@@ -25,7 +25,7 @@
       "optimizer": "adamw",
       "balance_training": true,
       "epochs": 4,
-      "learning_rate": 2.0E-5,
+      "learning_rate": 0.00002,
       "enabled": false,
       "max_length": 128
     }

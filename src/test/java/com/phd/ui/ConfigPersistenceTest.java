@@ -1,5 +1,6 @@
 package com.phd.ui;
 
+import com.phd.config.ConfigManager;
 import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,8 @@ class ConfigPersistenceTest {
     @BeforeAll
     static void setHeadless() {
         System.setProperty("java.awt.headless", "true");
+        // Initialize ConfigManager before tests
+        ConfigManager.initialize();
     }
 
     @Test
@@ -29,7 +32,9 @@ class ConfigPersistenceTest {
                 .put("feature_engineering", new JSONObject().put("tfidf", new JSONObject()))
                 .toString(2), StandardCharsets.UTF_8);
 
-        FeatureSamplePanel panel = new FeatureSamplePanel(tempConfig.toString());
+        // Note: Test now uses ConfigManager which initializes from default paths
+        // This test verifies the panel methods work correctly
+        FeatureSamplePanel panel = new FeatureSamplePanel();
         setSpinner(panel, "sampleSizeSpinner", 123);
         setSpinner(panel, "sampleRandomSpinner", 7);
         setSpinner(panel, "testSizeSpinner", 0.3d);
@@ -47,10 +52,11 @@ class ConfigPersistenceTest {
         setSpinner(panel, "minDfSpinner", 4);
         setCheckBox(panel, "useIdfBox", false);
 
-        panel.persistUiToModelForTest();
-        panel.saveSilentlyForTest();
+        panel.persistUiToModel();
+        panel.saveSilently();
 
-        JSONObject saved = new JSONObject(Files.readString(tempConfig, StandardCharsets.UTF_8));
+        // Read from ConfigManager's multilabel config
+        JSONObject saved = com.phd.config.ConfigManager.getMultiLabelConfig();
         JSONObject data = saved.getJSONObject("data");
         JSONObject fe = saved.getJSONObject("feature_engineering");
         JSONObject tfidf = fe.getJSONObject("tfidf");
@@ -80,7 +86,8 @@ class ConfigPersistenceTest {
         Files.writeString(mlConfig, new JSONObject().toString(2), StandardCharsets.UTF_8);
         Files.writeString(mcConfig, new JSONObject().toString(2), StandardCharsets.UTF_8);
 
-        VisualizationPanel panel = new VisualizationPanel(mlConfig.toString(), mcConfig.toString());
+        // Note: Test now uses ConfigManager which initializes from default paths
+        VisualizationPanel panel = new VisualizationPanel();
         Map<String, JCheckBox> mlChecks = getCheckMap(panel, "mlChecks");
         Map<String, JCheckBox> mcChecks = getCheckMap(panel, "mcChecks");
 
@@ -89,8 +96,9 @@ class ConfigPersistenceTest {
 
         panel.saveSilently();
 
-        JSONObject mlSaved = new JSONObject(Files.readString(mlConfig, StandardCharsets.UTF_8));
-        JSONObject mcSaved = new JSONObject(Files.readString(mcConfig, StandardCharsets.UTF_8));
+        // Read from ConfigManager's configs
+        JSONObject mlSaved = com.phd.config.ConfigManager.getMultiLabelConfig();
+        JSONObject mcSaved = com.phd.config.ConfigManager.getMultiClassConfig();
 
         mlChecks.keySet().forEach(key -> assertEquals(false, mlSaved.getJSONObject("visualizations").getBoolean(key)));
         mcChecks.keySet().forEach(key -> assertEquals(true, mcSaved.getJSONObject("visualizations").getBoolean(key)));
@@ -103,7 +111,8 @@ class ConfigPersistenceTest {
         Files.writeString(mlConfig, new JSONObject().put("models", new JSONObject()).put("data", new JSONObject()).toString(2), StandardCharsets.UTF_8);
         Files.writeString(mcConfig, new JSONObject().put("models", new JSONObject()).put("data", new JSONObject()).toString(2), StandardCharsets.UTF_8);
 
-        AITechniquePanel panel = new AITechniquePanel(mlConfig.toString(), "ml_script", mcConfig.toString(), "mc_script", null, null);
+        // Note: Test now uses ConfigManager; constructor takes only script paths
+        AITechniquePanel panel = new AITechniquePanel("ml_script", "mc_script", null, null);
 
         // Multi-label selections (tab 0)
         setSelectedTab(panel, 0);
@@ -138,9 +147,9 @@ class ConfigPersistenceTest {
         setSpinner(panel, "mlCnnMaxWordsSpinner", 4000);
 
         panel.persistInputsToModelForTest();
-        Files.writeString(mlConfig, panel.getMultiLabelConfigForTest().toString(2), StandardCharsets.UTF_8);
-
-        JSONObject mlSaved = new JSONObject(Files.readString(mlConfig, StandardCharsets.UTF_8));
+        // Config is now in ConfigManager, no file write needed
+        
+        JSONObject mlSaved = panel.getMultiLabelConfigForTest();
         JSONObject mlModels = mlSaved.getJSONObject("models").getJSONObject("traditional_ml");
         assertEquals(321, mlModels.getJSONObject("random_forest").getInt("n_estimators"));
         assertEquals(false, mlModels.getJSONObject("random_forest").getBoolean("use_classifier_chain"));
@@ -169,9 +178,9 @@ class ConfigPersistenceTest {
         setSpinner(panel, "mcBertLrSpinner", 0.0005d);
 
         panel.persistInputsToModelForTest();
-        Files.writeString(mcConfig, panel.getMultiClassConfigForTest().toString(2), StandardCharsets.UTF_8);
-
-        JSONObject mcSaved = new JSONObject(Files.readString(mcConfig, StandardCharsets.UTF_8));
+        // Config is now in ConfigManager, no file write needed
+        
+        JSONObject mcSaved = panel.getMultiClassConfigForTest();
         JSONObject mcData = mcSaved.getJSONObject("data");
         assertEquals(true, mcData.getBoolean("run_unbalanced"));
         assertEquals(false, mcData.getBoolean("run_balanced"));

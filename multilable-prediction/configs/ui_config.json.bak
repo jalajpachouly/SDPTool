@@ -117,7 +117,7 @@
   "data": {
     "dataset_path": "data/dataset.csv",
     "run_unbalanced": false,
-    "sample_size": 123,
+    "sample_size": 1386,
     "test_size": 0.2,
     "run_balanced": true,
     "balanced_target_count": 600,

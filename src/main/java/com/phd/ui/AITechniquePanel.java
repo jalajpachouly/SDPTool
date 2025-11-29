@@ -1,6 +1,7 @@
 
 package com.phd.ui;
 
+import com.phd.config.ConfigManager;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 
@@ -18,20 +19,14 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 public class AITechniquePanel extends JPanel {
-    public static final String DEFAULT_MULTILABEL_CONFIG_PATH = "multilable-prediction/configs/ui_config.json";
     public static final String DEFAULT_MULTILABEL_SCRIPT_PATH = "multilable-prediction/src/configurable_main.py";
-    public static final String DEFAULT_MULTICLASS_CONFIG_PATH = "software-change-type-prediction-main/configs/ui_config_multiclass.json";
     public static final String DEFAULT_MULTICLASS_SCRIPT_PATH = "software-change-type-prediction-main/src/configurable_main.py";
     private static final String PROBLEM_MULTI_LABEL = "multi_label";
     private static final String PROBLEM_MULTI_CLASS = "multi_class";
 
-    private final String multiLabelConfigPath;
     private final String multiLabelScriptPath;
-    private final String multiClassConfigPath;
     private final String multiClassScriptPath;
 
-    private JSONObject multiLabelConfig;
-    private JSONObject multiClassConfig;
     private JSONObject multiLabelModels;
     private JSONObject multiClassModels;
     
@@ -132,14 +127,14 @@ public class AITechniquePanel extends JPanel {
 
     private boolean updatingUiValues;
     public AITechniquePanel() {
-        this(DEFAULT_MULTILABEL_CONFIG_PATH, DEFAULT_MULTILABEL_SCRIPT_PATH, DEFAULT_MULTICLASS_CONFIG_PATH, DEFAULT_MULTICLASS_SCRIPT_PATH, null, null);
+        this(DEFAULT_MULTILABEL_SCRIPT_PATH, DEFAULT_MULTICLASS_SCRIPT_PATH, null, null);
     }
 
-    public AITechniquePanel(String multiLabelConfigPath, String multiLabelScriptPath, String multiClassConfigPath, String multiClassScriptPath, VisualizationPanel visualizationPanel, FeatureSamplePanel featureSamplePanel) {
-        this.multiLabelConfigPath = multiLabelConfigPath;
+    public AITechniquePanel(String multiLabelScriptPath, String multiClassScriptPath, VisualizationPanel visualizationPanel, FeatureSamplePanel featureSamplePanel) {
         this.multiLabelScriptPath = multiLabelScriptPath;
-        this.multiClassConfigPath = multiClassConfigPath;
         this.multiClassScriptPath = multiClassScriptPath;
+        this.visualizationPanel = visualizationPanel;
+        this.featureSamplePanel = featureSamplePanel;
         loadConfigs();
         // Initialize feature engineering fields (not displayed as tab, but needed for config read/write)
         createFeatureEngineeringPanel();
@@ -154,9 +149,10 @@ public class AITechniquePanel extends JPanel {
     }
 
     private void loadConfigs() {
-        multiLabelConfig = loadConfigFile(multiLabelConfigPath, PROBLEM_MULTI_LABEL);
+        JSONObject multiLabelConfig = ConfigManager.getMultiLabelConfig();
+        JSONObject multiClassConfig = ConfigManager.getMultiClassConfig();
+        
         multiLabelModels = ensureObject(multiLabelConfig, "models");
-        multiClassConfig = loadConfigFile(multiClassConfigPath, PROBLEM_MULTI_CLASS);
         multiClassModels = ensureObject(multiClassConfig, "models");
         ensureObject(multiClassConfig, "feature_engineering");
         ensureObject(multiLabelConfig, "data");
@@ -165,19 +161,13 @@ public class AITechniquePanel extends JPanel {
         ensureObject(multiClassModels, "traditional");
         ensureObject(multiClassModels, "bert");
         ensureObject(multiLabelConfig, "feature_engineering");
-    }
-
-    private JSONObject loadConfigFile(String path, String defaultProblemType) {
-        JSONObject loaded;
-        try (FileReader reader = new FileReader(path)) {
-            loaded = new JSONObject(new JSONTokener(reader));
-        } catch (Exception e) {
-            loaded = new JSONObject();
+        
+        if (!multiLabelConfig.has("problem_type")) {
+            multiLabelConfig.put("problem_type", PROBLEM_MULTI_LABEL);
         }
-        if (!loaded.has("problem_type")) {
-            loaded.put("problem_type", defaultProblemType);
+        if (!multiClassConfig.has("problem_type")) {
+            multiClassConfig.put("problem_type", PROBLEM_MULTI_CLASS);
         }
-        return loaded;
     }
 
     private JComponent createHeader() {
@@ -234,10 +224,10 @@ public class AITechniquePanel extends JPanel {
         problemTabs.addTab("Multi-class", createMultiClassTabs());
         problemTabs.addChangeListener(e -> {
             if (problemTabs.getSelectedIndex() == 1) {
-                multiClassConfig.put("problem_type", PROBLEM_MULTI_CLASS);
+                ConfigManager.getMultiClassConfig().put("problem_type", PROBLEM_MULTI_CLASS);
                 mcRadio.setSelected(true);
             } else {
-                multiLabelConfig.put("problem_type", PROBLEM_MULTI_LABEL);
+                ConfigManager.getMultiLabelConfig().put("problem_type", PROBLEM_MULTI_LABEL);
                 mlRadio.setSelected(true);
             }
             updateProblemTabEnabling();
@@ -619,8 +609,17 @@ public class AITechniquePanel extends JPanel {
     }
 
     private void handlePreview(ActionEvent event) {
+        // Persist AI panel values to shared config
         persistInputsToModel();
+        
+        // Persist feature/sample panel values to shared config
+        if (featureSamplePanel != null) {
+            featureSamplePanel.persistUiToModel();
+        }
+        
+        // Get active config from ConfigManager (already has all changes in memory)
         JSONObject activeConfig = getActiveConfig();
+        
         JTextArea textArea = new JTextArea(activeConfig.toString(2));
         textArea.setEditable(false);
         textArea.setCaretPosition(0);
@@ -680,16 +679,19 @@ public class AITechniquePanel extends JPanel {
 
             private String executePythonScript() throws IOException, InterruptedException {
                 Path scriptPath = Paths.get(getActiveScriptPath()).toAbsolutePath();
-                Path configPath = Paths.get(getActiveConfigPath()).toAbsolutePath();
+                String configPath = isMultiClassSelected() ? 
+                    ConfigManager.MULTICLASS_CONFIG_PATH : 
+                    ConfigManager.MULTILABEL_CONFIG_PATH;
+                Path configPathObj = Paths.get(configPath).toAbsolutePath();
 
                 if (!Files.exists(scriptPath)) {
                     throw new IOException("Unable to locate configurable_main.py at " + scriptPath);
                 }
-                if (!Files.exists(configPath)) {
-                    throw new IOException("Configuration file not found at " + configPath);
+                if (!Files.exists(configPathObj)) {
+                    throw new IOException("Configuration file not found at " + configPathObj);
                 }
 
-                ProcessBuilder builder = new ProcessBuilder("python", scriptPath.toString(), configPath.toString());
+                ProcessBuilder builder = new ProcessBuilder("python", scriptPath.toString(), configPathObj.toString());
                 builder.directory(scriptPath.getParent().toFile());
                 builder.redirectErrorStream(true);
 
@@ -745,18 +747,24 @@ public class AITechniquePanel extends JPanel {
     private boolean saveConfigToFile(boolean showSuccessMessage) {
         persistInputsToModel();
         
-        JSONObject activeConfig = getActiveConfig();
-        String configPath = getActiveConfigPath();
-        try (FileWriter writer = new FileWriter(configPath)) {
-            writer.write(activeConfig.toString(2));
+        // Save using ConfigManager
+        boolean success = false;
+        try {
+            if (isMultiClassSelected()) {
+                ConfigManager.saveMultiClass();
+            } else {
+                ConfigManager.saveMultiLabel();
+            }
+            success = true;
         } catch (Exception e) {
+            System.err.println("Failed to save config: " + e.getMessage());
             if (!GraphicsEnvironment.isHeadless()) {
                 JOptionPane.showMessageDialog(this, "Unable to save configuration: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
             return false;
         }
         
-        // Save feature/sample settings AFTER to avoid being overwritten
+        // Save feature/sample settings
         if (featureSamplePanel != null) {
             featureSamplePanel.saveSilently();
         }
@@ -851,6 +859,8 @@ public class AITechniquePanel extends JPanel {
         if (problemTabs == null) {
             return;
         }
+        JSONObject multiLabelConfig = ConfigManager.getMultiLabelConfig();
+        JSONObject multiClassConfig = ConfigManager.getMultiClassConfig();
         String labelType = multiLabelConfig != null ? multiLabelConfig.optString("problem_type", PROBLEM_MULTI_LABEL) : PROBLEM_MULTI_LABEL;
         String classType = multiClassConfig != null ? multiClassConfig.optString("problem_type", PROBLEM_MULTI_LABEL) : PROBLEM_MULTI_LABEL;
         String selectedType = labelType;
@@ -881,6 +891,7 @@ public class AITechniquePanel extends JPanel {
         if (multiLabelModels == null || mlRandomForestEnabledBox == null) {
             return;
         }
+        JSONObject multiLabelConfig = ConfigManager.getMultiLabelConfig();
         JSONObject traditional = ensureObject(multiLabelModels, "traditional_ml");
         JSONObject tradCvByModel = ensureObject(traditional, "run_cross_validation_by_model");
         JSONObject data = ensureObject(multiLabelConfig, "data");
@@ -966,6 +977,7 @@ public class AITechniquePanel extends JPanel {
             return;
         }
         updatingUiValues = true;
+        JSONObject multiClassConfig = ConfigManager.getMultiClassConfig();
         JSONObject data = ensureObject(multiClassConfig, "data");
         JSONObject preprocessing = ensureObject(multiClassConfig, "preprocessing");
         JSONObject featureEngineering = ensureObject(multiClassConfig, "feature_engineering");
@@ -1019,15 +1031,16 @@ public class AITechniquePanel extends JPanel {
 
     private void persistInputsToModel() {
         if (isMultiClassSelected()) {
-            multiClassConfig.put("problem_type", PROBLEM_MULTI_CLASS);
+            ConfigManager.getMultiClassConfig().put("problem_type", PROBLEM_MULTI_CLASS);
             persistMultiClassValues();
         } else {
-            multiLabelConfig.put("problem_type", PROBLEM_MULTI_LABEL);
+            ConfigManager.getMultiLabelConfig().put("problem_type", PROBLEM_MULTI_LABEL);
             persistMultiLabelValues();
         }
     }
 
     private void persistMultiLabelValues() {
+        JSONObject multiLabelConfig = ConfigManager.getMultiLabelConfig();
         JSONObject traditional = ensureObject(multiLabelModels, "traditional_ml");
 
         boolean rfEnabled = mlRandomForestEnabledBox.isSelected();
@@ -1117,6 +1130,7 @@ public class AITechniquePanel extends JPanel {
     }
 
     private void persistMultiClassValues() {
+        JSONObject multiClassConfig = ConfigManager.getMultiClassConfig();
         JSONObject data = ensureObject(multiClassConfig, "data");
         data.put("run_unbalanced", mcRunUnbalancedBox.isSelected());
         data.put("run_balanced", mcRunBalancedBox.isSelected());
@@ -1171,11 +1185,7 @@ public class AITechniquePanel extends JPanel {
     }
 
     private JSONObject getActiveConfig() {
-        return isMultiClassSelected() ? multiClassConfig : multiLabelConfig;
-    }
-
-    private String getActiveConfigPath() {
-        return isMultiClassSelected() ? multiClassConfigPath : multiLabelConfigPath;
+        return isMultiClassSelected() ? ConfigManager.getMultiClassConfig() : ConfigManager.getMultiLabelConfig();
     }
 
     private String getActiveScriptPath() {
@@ -1188,11 +1198,11 @@ public class AITechniquePanel extends JPanel {
     }
 
     JSONObject getMultiLabelConfigForTest() {
-        return multiLabelConfig;
+        return ConfigManager.getMultiLabelConfig();
     }
 
     JSONObject getMultiClassConfigForTest() {
-        return multiClassConfig;
+        return ConfigManager.getMultiClassConfig();
     }
 
     private void syncMultiClassEnabled() {

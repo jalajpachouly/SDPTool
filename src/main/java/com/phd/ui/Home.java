@@ -1,6 +1,7 @@
 package com.phd.ui;
 
 import com.phd.config.Configuration;
+import com.phd.config.ConfigManager;
 import com.phd.db.DBManager;
 import com.phd.issue.FetchData;
 
@@ -54,12 +55,12 @@ public class Home extends Component {
         f.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         getCongigurationPanel(tp, config);
         getPreProcessingPanel(tp,config);
+        
+        // Create panels - they will use ConfigManager's shared config objects
         FeatureSamplePanel featureSamplePanel = new FeatureSamplePanel();
         VisualizationPanel visualizationPanel = new VisualizationPanel();
         AITechniquePanel aiTechniquePanel = new AITechniquePanel(
-            AITechniquePanel.DEFAULT_MULTILABEL_CONFIG_PATH,
             AITechniquePanel.DEFAULT_MULTILABEL_SCRIPT_PATH,
-            AITechniquePanel.DEFAULT_MULTICLASS_CONFIG_PATH,
             AITechniquePanel.DEFAULT_MULTICLASS_SCRIPT_PATH,
             visualizationPanel,
             featureSamplePanel
@@ -90,6 +91,9 @@ public class Home extends Component {
 
 
     public static void main(String[] args) {
+        // Initialize shared configuration manager FIRST
+        ConfigManager.initialize();
+        
         config = new Configuration();
         new Home();
     }
