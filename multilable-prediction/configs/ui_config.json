@@ -8,28 +8,28 @@
   "models": {
     "traditional_ml": {
       "random_forest": {
-        "use_classifier_chain": true,
+        "use_classifier_chain": false,
         "n_estimators": 100,
         "random_state": 42,
-        "enabled": true
+        "enabled": false
       },
       "logistic_regression": {
-        "use_classifier_chain": true,
+        "use_classifier_chain": false,
         "max_iter": 10000,
-        "enabled": true
+        "enabled": false
       },
       "multinomial_nb": {
-        "use_classifier_chain": true,
-        "enabled": true
+        "use_classifier_chain": false,
+        "enabled": false
       },
       "cv_n_splits": 10,
       "run_cross_validation": false,
       "run_cross_validation_by_model": {
-        "random_forest": true,
-        "logistic_regression": true,
-        "multinomial_nb": true
+        "random_forest": false,
+        "logistic_regression": false,
+        "multinomial_nb": false
       },
-      "enabled": true
+      "enabled": false
     },
     "multi_class": {
       "cv_n_splits": 5,
@@ -72,7 +72,7 @@
         "cv_n_splits": 10,
         "run_cross_validation": false,
         "enabled": false,
-        "early_stopping_patience": 5,
+        "early_stopping_patience": 10,
         "max_len": 100,
         "max_words": 5000,
         "dropout": 0.5,
@@ -82,7 +82,7 @@
         "conv_kernel_size": 5,
         "cv_epochs": 10
       },
-      "enabled": false
+      "enabled": true
     }
   },
   "experiment_name": "T5",

@@ -653,7 +653,7 @@ public class AITechniquePanel extends JPanel {
             sourceButton.setEnabled(false);
             sourceButton.setText("Running...");
         }
-        setProgressState("Initializing...", false, 0, Color.BLUE);
+        setProgressState("⟳ Starting...", true, 0, Color.BLUE);
 
         SwingWorker<Void, String> worker = new SwingWorker<>() {
             private String outputText = "";

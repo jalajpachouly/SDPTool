@@ -126,7 +126,14 @@ public class FeatureSamplePanel extends JPanel {
         addRow(panel, row++, "Runs", togglePanel);
 
         targetCountSpinner = createIntSpinner(600, 100, 10000, 50);
-        addRow(panel, row, "Target count for balancing", targetCountSpinner);
+        targetCountSpinner.setToolTipText("Non-Negative Least Squares sampling balances dataset while preserving label co-occurrence patterns");
+        addRow(panel, row, "Target Samples per Label (NNLS)", targetCountSpinner);
+        
+        // Enable/disable target count based on balanced checkbox
+        runBalancedBox.addItemListener(e -> {
+            targetCountSpinner.setEnabled(runBalancedBox.isSelected());
+        });
+        
         return panel;
     }
 
@@ -237,6 +244,7 @@ public class FeatureSamplePanel extends JPanel {
         runBalancedBox.setSelected(dataConfig.optBoolean("run_balanced", true));
         runUnbalancedBox.setSelected(dataConfig.optBoolean("run_unbalanced", true));
         targetCountSpinner.setValue(dataConfig.optInt("balanced_target_count", 600));
+        targetCountSpinner.setEnabled(runBalancedBox.isSelected());
 
         useFeatureSelectionBox.setSelected(featureConfig.optBoolean("use_feature_selection", true));
         topKSpinner.setValue(featureConfig.optInt("top_k", 50));
