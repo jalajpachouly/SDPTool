@@ -87,30 +87,37 @@ public class PredictionPanel extends JPanel {
     }
 
     private JPanel createRunEntry(RunMetadata metadata) {
-        JPanel panel = new JPanel(new BorderLayout());
+        JPanel panel = new JPanel(new BorderLayout(10, 0));
         panel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(220, 223, 230)),
                 new EmptyBorder(12, 14, 12, 14)
         ));
         panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 110));
 
+        // Left section: Run name and status
+        JPanel leftSection = new JPanel();
+        leftSection.setOpaque(false);
+        leftSection.setLayout(new BoxLayout(leftSection, BoxLayout.Y_AXIS));
+        
         JLabel nameLabel = new JLabel(metadata.displayName);
         nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD, 15f));
-
-        JLabel summaryLabel = new JLabel(buildSummaryLine(metadata));
-        summaryLabel.setForeground(new Color(90, 98, 110));
-
+        
         JLabel statusLabel = new JLabel(metadata.status);
         statusLabel.setForeground(statusToColor(metadata.status));
-
-        JPanel textPanel = new JPanel();
-        textPanel.setOpaque(false);
-        textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
-        textPanel.add(nameLabel);
-        textPanel.add(Box.createVerticalStrut(4));
-        textPanel.add(summaryLabel);
-        textPanel.add(Box.createVerticalStrut(6));
-        textPanel.add(statusLabel);
+        
+        leftSection.add(nameLabel);
+        leftSection.add(Box.createVerticalStrut(4));
+        leftSection.add(statusLabel);
+        
+        // Center section: Details
+        JPanel centerSection = new JPanel();
+        centerSection.setOpaque(false);
+        centerSection.setLayout(new BoxLayout(centerSection, BoxLayout.Y_AXIS));
+        
+        JLabel summaryLabel = new JLabel(buildSummaryLine(metadata));
+        summaryLabel.setForeground(new Color(90, 98, 110));
+        centerSection.add(summaryLabel);
+        
         if (metadata.hyperSummary != null && !metadata.hyperSummary.isBlank()) {
             String hyperText = metadata.hyperSummary.trim();
             String shortText = hyperText.length() > 180 ? hyperText.substring(0, 177) + "..." : hyperText;
@@ -120,26 +127,36 @@ public class PredictionPanel extends JPanel {
             }
             hyperLabel.setForeground(new Color(110, 118, 130));
             hyperLabel.setFont(hyperLabel.getFont().deriveFont(Font.ITALIC, 11f));
-            textPanel.add(Box.createVerticalStrut(6));
-            textPanel.add(hyperLabel);
+            centerSection.add(Box.createVerticalStrut(6));
+            centerSection.add(hyperLabel);
         }
 
-        JPanel actionsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        // Right section: Action buttons
+        JPanel actionsPanel = new JPanel();
         actionsPanel.setOpaque(false);
+        actionsPanel.setLayout(new BoxLayout(actionsPanel, BoxLayout.Y_AXIS));
+        
         JButton openButton = new JButton("Open Report");
         openButton.setEnabled(metadata.hasReport);
+        openButton.setPreferredSize(new Dimension(120, 28));
+        openButton.setMaximumSize(new Dimension(120, 28));
         openButton.addActionListener(e -> openReport(metadata.runDir));
 
         JButton deleteButton = new JButton("Delete");
+        deleteButton.setPreferredSize(new Dimension(120, 28));
+        deleteButton.setMaximumSize(new Dimension(120, 28));
         deleteButton.addActionListener(e -> {
             deleteRun(metadata.runDir);
             refreshRunsList();
         });
 
         actionsPanel.add(openButton);
+        actionsPanel.add(Box.createVerticalStrut(6));
         actionsPanel.add(deleteButton);
+        actionsPanel.add(Box.createVerticalGlue());
 
-        panel.add(textPanel, BorderLayout.CENTER);
+        panel.add(leftSection, BorderLayout.WEST);
+        panel.add(centerSection, BorderLayout.CENTER);
         panel.add(actionsPanel, BorderLayout.EAST);
         return panel;
     }
