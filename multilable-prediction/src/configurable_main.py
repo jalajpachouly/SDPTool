@@ -1201,13 +1201,11 @@ if __name__ == "__main__":
         f.write("<hr><p>Run complete.</p>")
         f.write("</body></html>")
     
-    log_progress(98, "Writing metadata and finalizing...")
     write_run_metadata(run_folder, run_name, timestamp, data_types, combined_models, config_file, hyperparameters=hyperparams_by_type, charts=chart_names_for_metadata)
     # Mark run as complete
     with open(run_folder / 'COMPLETE.flag', 'w') as flagf:
         flagf.write('complete')
     
-    log_progress(100, "Experiment complete!")
     print(f"\n{'='*60}")
     print(f"EXPERIMENT COMPLETE: {run_name}")
     print(f"Report available at: {html_path}")
