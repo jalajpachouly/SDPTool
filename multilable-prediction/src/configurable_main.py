@@ -1387,14 +1387,42 @@ if __name__ == "__main__":
 
         f.write("<section id='performance'>")
         f.write("<h2>3. Model Performance</h2>")
-        f.write("<h3>3.1 Metric Table</h3>")
-        f.write("<table border='1'><tr><th>Data Type</th><th>Model</th><th>Label</th><th>Recall</th><th>F1</th><th>Hamming Loss</th></tr>")
+        f.write("<h3>3.1 Metric Tables</h3>")
+        f.write("<style>.macro-row { font-weight: bold; background: #f7f7f7; }</style>")
         for data_type in data_types:
             results = all_results.get(data_type)
-            if results is not None:
-                for _, r in results.iterrows():
-                    f.write(f"<tr><td>{data_type}</td><td>{r['Model']}</td><td>{r['Label']}</td><td>{r['Recall']:.4f}</td><td>{r['F1']:.4f}</td><td>{r['Hamming Loss']:.4f}</td></tr>")
-        f.write("</table>")
+            f.write(f"<h4>{data_type} - Per-Label Metrics</h4>")
+            if results is not None and not results.empty:
+                per_label = results[results['Label'] != 'MACRO_AVERAGE']
+                if not per_label.empty:
+                    f.write("<table border='1' style='border-collapse:collapse; margin-bottom:20px;'><tr><th>Model</th><th>Label</th><th>Recall</th><th>F1</th><th>Hamming Loss</th></tr>")
+                    for _, r in per_label.iterrows():
+                        f.write(f"<tr><td>{r['Model']}</td><td>{r['Label']}</td><td>{r['Recall']:.4f}</td><td>{r['F1']:.4f}</td><td>{r['Hamming Loss']:.4f}</td></tr>")
+                    f.write("</table>")
+                else:
+                    f.write("<p>No per-label metrics available.</p>")
+            else:
+                f.write("<p>No metrics available for this data type.</p>")
+
+            f.write(f"<h4>{data_type} - Macro Average Metrics</h4>")
+            if results is not None and not results.empty:
+                macro_rows = results[results['Label'] == 'MACRO_AVERAGE']
+                per_label = results[results['Label'] != 'MACRO_AVERAGE']
+                if macro_rows.empty and not per_label.empty:
+                    macro_rows = per_label.groupby('Model').agg({
+                        'Recall': 'mean',
+                        'F1': 'mean',
+                        'Hamming Loss': 'mean'
+                    }).reset_index()
+                if not macro_rows.empty:
+                    f.write("<table border='1' style='border-collapse:collapse; margin-bottom:20px;'><tr><th>Model</th><th>Macro Recall</th><th>Macro F1</th><th>Macro Hamming Loss</th></tr>")
+                    for _, r in macro_rows.iterrows():
+                        f.write(f"<tr class='macro-row'><td>{r['Model']}</td><td>{r['Recall']:.4f}</td><td>{r['F1']:.4f}</td><td>{r['Hamming Loss']:.4f}</td></tr>")
+                    f.write("</table>")
+                else:
+                    f.write("<p>No macro-average metrics available.</p>")
+            else:
+                f.write("<p>No macro-average metrics available.</p>")
         chart_names_for_metadata = []
 
         f.write("<h3>3.2 Statistical Significance Testing</h3>")
