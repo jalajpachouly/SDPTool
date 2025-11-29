@@ -393,6 +393,88 @@ def plot_metric_comparisons(all_results, data_types, run_folder):
     return chart_paths
 
 
+def plot_macro_bar_charts(all_results, data_types, run_folder):
+    """Create bar charts for macro metrics comparing models across balanced vs unbalanced data."""
+    metrics = ['F1', 'Recall', 'Hamming Loss']
+    chart_paths = {}
+    
+    for metric in metrics:
+        frames = []
+        for data_type in data_types:
+            df = all_results.get(data_type)
+            if df is None or df.empty or metric not in df.columns:
+                continue
+            
+            # Extract macro rows
+            macro_results = df[df['Label'] == 'MACRO_AVERAGE']
+            if not macro_results.empty:
+                summary = macro_results[['Model', metric]].copy()
+                summary['DataType'] = data_type
+                frames.append(summary)
+        
+        if not frames:
+            continue
+        
+        combined = pd.concat(frames, ignore_index=True)
+        plt.figure(figsize=(10, 6))
+        ax = sns.barplot(data=combined, x='Model', y=metric, hue='DataType')
+        if metric != 'Hamming Loss':
+            ax.set_ylim(0, 1)
+        ax.set_title(f'Macro {metric}: Model Comparison (Balanced vs Unbalanced)', fontsize=14, fontweight='bold')
+        plt.xticks(rotation=25, ha='right')
+        plt.ylabel(f'Macro {metric}', fontsize=12)
+        plt.xlabel('Model', fontsize=12)
+        plt.legend(title='Data Type', fontsize=10)
+        plt.grid(axis='y', alpha=0.3)
+        chart_path = run_folder / f"macro_{metric.lower().replace(' ', '_')}_bar.png"
+        plt.tight_layout()
+        plt.savefig(chart_path, dpi=100)
+        plt.close()
+        chart_paths[metric] = chart_path
+    
+    return chart_paths
+
+
+def plot_macro_box_plots(all_results, data_types, run_folder):
+    """Create box plots showing macro metric distributions across models, comparing data types."""
+    metrics = ['F1', 'Recall', 'Hamming Loss']
+    chart_paths = {}
+    
+    for metric in metrics:
+        frames = []
+        for data_type in data_types:
+            df = all_results.get(data_type)
+            if df is None or df.empty or metric not in df.columns:
+                continue
+            
+            # Extract macro rows
+            macro_results = df[df['Label'] == 'MACRO_AVERAGE']
+            if not macro_results.empty:
+                summary = macro_results[['Model', metric]].copy()
+                summary['DataType'] = data_type
+                frames.append(summary)
+        
+        if not frames:
+            continue
+        
+        combined = pd.concat(frames, ignore_index=True)
+        plt.figure(figsize=(10, 6))
+        ax = sns.boxplot(data=combined, x='DataType', y=metric, hue='DataType', palette='Set2')
+        if metric != 'Hamming Loss':
+            ax.set_ylim(0, 1)
+        ax.set_title(f'Macro {metric}: Distribution Across Models (By Data Type)', fontsize=14, fontweight='bold')
+        plt.ylabel(f'Macro {metric}', fontsize=12)
+        plt.xlabel('Data Type', fontsize=12)
+        plt.grid(axis='y', alpha=0.3)
+        chart_path = run_folder / f"macro_{metric.lower().replace(' ', '_')}_box.png"
+        plt.tight_layout()
+        plt.savefig(chart_path, dpi=100)
+        plt.close()
+        chart_paths[metric] = chart_path
+    
+    return chart_paths
+
+
 def categorize_diagnostic_image(image_name):
     if not image_name:
         return None
@@ -441,7 +523,7 @@ def main(
         print(f"[TASK:{model_name}:{percent}:{message}]")
         print(f"    {model_name}: {message}")
     
-    log_progress(0, "Starting experiment...")
+    log_progress(0, "Running experiment...")
 
     resolved_run_name = run_name or (config.get('experiment_name', 'run') if config else 'run')
     resolved_timestamp = timestamp or datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -917,18 +999,58 @@ def main(
                             f.write(f"<p><strong>Best Model:</strong> {ranking_info['best_model']} with Macro F1 = {ranking_info['best_f1']:.4f}</p>")
             
             if all_results:
-                f.write("<h3>3.2 Detailed Metrics (All Models, All Labels)</h3>")
+                f.write("<h3>3.2 Detailed Metrics Tables</h3>")
                 f.write("<style>.macro-row { font-weight: bold; border: 3px solid #dc143c !important; }</style>")
-                f.write("<table border='1' style='border-collapse:collapse;'><tr><th>Data Type</th><th>Model</th><th>Label</th><th>Recall</th><th>F1</th><th>Hamming Loss</th></tr>")
-                for data_type in data_types:
-                    results = all_results.get(data_type)
-                    if results is None:
-                        continue
+                
+                # Table 1: Balanced Per-Label Results
+                f.write("<h4>Balanced Dataset - Per-Label Metrics</h4>")
+                if 'Balanced' in all_results:
+                    f.write("<table border='1' style='border-collapse:collapse;'><tr><th>Model</th><th>Label</th><th>Recall</th><th>F1</th><th>Hamming Loss</th></tr>")
+                    results = all_results['Balanced']
                     for _, r in results.iterrows():
-                        # Add special styling for MACRO_AVERAGE rows
-                        row_class = " class='macro-row'" if r['Label'] == 'MACRO_AVERAGE' else ""
-                        f.write(f"<tr{row_class}><td>{data_type}</td><td>{r['Model']}</td><td>{r['Label']}</td><td>{r['Recall']:.4f}</td><td>{r['F1']:.4f}</td><td>{r['Hamming Loss']:.4f}</td></tr>")
-                f.write("</table>")
+                        if r['Label'] != 'MACRO_AVERAGE':  # Exclude macro rows
+                            f.write(f"<tr><td>{r['Model']}</td><td>{r['Label']}</td><td>{r['Recall']:.4f}</td><td>{r['F1']:.4f}</td><td>{r['Hamming Loss']:.4f}</td></tr>")
+                    f.write("</table>")
+                else:
+                    f.write("<p>No balanced data available.</p>")
+                
+                # Table 2: Balanced Macro Results
+                f.write("<h4>Balanced Dataset - Macro Average Metrics</h4>")
+                if 'Balanced' in all_results:
+                    f.write("<table border='1' style='border-collapse:collapse;'><tr><th>Model</th><th>Macro Recall</th><th>Macro F1</th><th>Macro Hamming Loss</th></tr>")
+                    results = all_results['Balanced']
+                    for _, r in results.iterrows():
+                        if r['Label'] == 'MACRO_AVERAGE':  # Only macro rows
+                            f.write(f"<tr class='macro-row'><td>{r['Model']}</td><td>{r['Recall']:.4f}</td><td>{r['F1']:.4f}</td><td>{r['Hamming Loss']:.4f}</td></tr>")
+                    f.write("</table>")
+                else:
+                    f.write("<p>No balanced data available.</p>")
+                
+                # Table 3: Unbalanced Per-Label Results
+                f.write("<h4>Unbalanced Dataset - Per-Label Metrics</h4>")
+                if 'Unbalanced' in all_results:
+                    f.write("<table border='1' style='border-collapse:collapse;'><tr><th>Model</th><th>Label</th><th>Recall</th><th>F1</th><th>Hamming Loss</th></tr>")
+                    results = all_results['Unbalanced']
+                    for _, r in results.iterrows():
+                        if r['Label'] != 'MACRO_AVERAGE':  # Exclude macro rows
+                            f.write(f"<tr><td>{r['Model']}</td><td>{r['Label']}</td><td>{r['Recall']:.4f}</td><td>{r['F1']:.4f}</td><td>{r['Hamming Loss']:.4f}</td></tr>")
+                    f.write("</table>")
+                else:
+                    f.write("<p>No unbalanced data available.</p>")
+                
+                # Table 4: Unbalanced Macro Results
+                f.write("<h4>Unbalanced Dataset - Macro Average Metrics</h4>")
+                if 'Unbalanced' in all_results:
+                    f.write("<table border='1' style='border-collapse:collapse;'><tr><th>Model</th><th>Macro Recall</th><th>Macro F1</th><th>Macro Hamming Loss</th></tr>")
+                    results = all_results['Unbalanced']
+                    for _, r in results.iterrows():
+                        if r['Label'] == 'MACRO_AVERAGE':  # Only macro rows
+                            f.write(f"<tr class='macro-row'><td>{r['Model']}</td><td>{r['Recall']:.4f}</td><td>{r['F1']:.4f}</td><td>{r['Hamming Loss']:.4f}</td></tr>")
+                    f.write("</table>")
+                else:
+                    f.write("<p>No unbalanced data available.</p>")
+                
+                # CSV download links
                 links = []
                 for dt in data_types:
                     csv_name = f"results_{dt.lower()}.csv"
@@ -940,16 +1062,61 @@ def main(
                 f.write("<p>No metrics available.</p>")
 
             if run_visualizations:
-                # Cross-dataset model comparison
+                # NEW Section 3.3: Macro Metric Comparison Charts
+                f.write("<h3>3.3 Macro Metric Comparisons</h3>")
+                
+                # Generate macro bar charts and box plots
+                macro_bar_charts = plot_macro_bar_charts(all_results, data_types, run_folder)
+                macro_box_charts = plot_macro_box_plots(all_results, data_types, run_folder)
+                
+                # Display charts to the right for both balanced and unbalanced
+                for metric in ['F1', 'Recall', 'Hamming Loss']:
+                    if metric in macro_bar_charts:
+                        f.write(f"<h4>Macro {metric} Comparison</h4>")
+                        f.write("<div style='display: flex; justify-content: flex-end; gap: 20px; margin-bottom: 30px;'>")
+                        render_img(Path(macro_bar_charts[metric]).name, f"Bar Chart: Macro {metric}")
+                        if metric in macro_box_charts:
+                            render_img(Path(macro_box_charts[metric]).name, f"Box Plot: Macro {metric} Distribution")
+                        f.write("</div>")
+                        chart_names_for_metadata.append(Path(macro_bar_charts[metric]).name)
+                        if metric in macro_box_charts:
+                            chart_names_for_metadata.append(Path(macro_box_charts[metric]).name)
+                
+                # Statistical Significance Testing (positioned to the right)
+                if fold_metrics:
+                    f.write("<h4>Statistical Significance Testing</h4>")
+                    f.write("<div style='display: flex; justify-content: flex-end;'>")
+                    f.write("<div style='max-width: 800px;'>")
+                    # Determine best model from test set rankings
+                    best_model_name = None
+                    if ranking_tables:
+                        for dt_name, ranking_info in ranking_tables.items():
+                            if ranking_info['best_model']:
+                                best_model_name = ranking_info['best_model']
+                                break
+                    
+                    sig_results = compute_significance_from_folds(fold_metrics, alpha=0.05, best_model_override=best_model_name)
+                    if sig_results:
+                        f.write("<p><em>Statistical tests compare each model's cross-validation macro-F1 scores against the best-performing model from test set results.</em></p>")
+                        f.write("<table border='1' style='border-collapse:collapse;'><tr><th>Model</th><th>Mean CV Macro-F1</th><th>Std Dev</th><th>p-value</th><th>Significant?</th></tr>")
+                        for model_name, stats in sig_results.items():
+                            sig_marker = "✓ Yes" if stats['significant'] else "✗ No"
+                            f.write(f"<tr><td>{model_name}</td><td>{stats['mean']:.4f}</td><td>{stats['std']:.4f}</td><td>{stats['p_value']:.4f}</td><td>{sig_marker}</td></tr>")
+                        f.write("</table>")
+                    else:
+                        f.write("<p>Not enough models for statistical comparison.</p>")
+                    f.write("</div></div>")
+
+                # Cross-dataset model comparison (MOVED to 3.4)
                 if comparison_chart_path or cross_metric_charts:
-                    f.write("<h3>3.3 Model Comparison: Balanced vs Unbalanced</h3>")
+                    f.write("<h3>3.4 Model Comparison: Balanced vs Unbalanced</h3>")
                     if comparison_chart_path:
                         render_img(Path(comparison_chart_path).name, "Macro F1-Score by Model (Balanced vs Unbalanced)")
                     for metric, chart_path in (cross_metric_charts or {}).items():
                         render_img(Path(chart_path).name, f"Macro {metric} by Model (Balanced vs Unbalanced)")
 
-                # Label trends
-                f.write("<h3>3.4 Label-Level Trends</h3>")
+                # Label trends (NOW 3.5)
+                f.write("<h3>3.5 Label-Level Trends</h3>")
                 plt.figure(figsize=(8,5))
                 plotted = False
                 for data_type in data_types:
@@ -968,19 +1135,19 @@ def main(
                     render_img('f1_comparison.png', 'F1 Score by Label (Balanced vs Unbalanced)')
                     chart_names_for_metadata.append('f1_comparison.png')
 
-                # Per-data-type summaries
-                f.write("<h3>3.5 Per Data-Type Model Summaries</h3>")
+                # Per-data-type summaries (NOW 3.6)
+                f.write("<h3>3.6 Per Data-Type Model Summaries</h3>")
                 for data_type in data_types:
                     chart_name = summary_charts.get(data_type)
                     if chart_name:
                         render_img(chart_name, f"Macro F1-Score by Model ({data_type})")
                         chart_names_for_metadata.append(chart_name)
 
-                # Per-data-type detailed charts
+                # Per-data-type detailed charts (NOW 3.7)
                 for data_type in data_types:
                     charts = performance_charts_by_type.get(data_type) or []
                     if charts:
-                        f.write(f"<h3>3.6 Detailed Performance Views ({data_type})</h3>")
+                        f.write(f"<h3>3.7 Detailed Performance Views ({data_type})</h3>")
                         caption_map = {
                             "recall_by_model_label": "Recall by Model and Label",
                             "f1_by_model_label": "F1 by Model and Label",
