@@ -553,7 +553,7 @@ def main(
     log_progress(50, "Training and evaluating models...")
     all_results = []
     model_count = len(classifiers)
-    for idx, (clf, model_name) in enumerate(classifiers, model_names):
+    for idx, (clf, model_name) in enumerate(zip(classifiers, model_names)):
         model_progress = 50 + int((idx / max(model_count, 1)) * 30)
         log_progress(model_progress, f"Training {model_name}...")
         log_task(model_name, 0, "Training on dataset...")
