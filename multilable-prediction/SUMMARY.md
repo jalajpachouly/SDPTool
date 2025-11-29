@@ -205,11 +205,6 @@ python run_configurable.py main_config.json
 python src/configurable_main.py configs/ui_config.json
 ```
 
-### Traditional ML only:
-```bash
-python src/configurable_main.py configs/traditional_ml_only.json
-```
-
 ## Files Created
 
 1. **src/configurable_main.py** (351 lines) - Main implementation
@@ -218,6 +213,5 @@ python src/configurable_main.py configs/traditional_ml_only.json
 4. **run_configurable.py** - Launcher script
 5. **main_config.json** - Default configuration
 6. **configs/ui_config.json** - UI-generated configuration (bridge between Java UI and Python ML backend)
-7. **configs/traditional_ml_only.json** - ML models only config
 
 Everything is ready to use! 🎉

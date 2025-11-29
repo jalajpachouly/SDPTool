@@ -377,40 +377,40 @@ def main(
     
     # Use JSON config
     project_root = Path(__file__).parent.parent
-        csv_path = str(project_root / config['data']['dataset_path'])
-        sample_size = config['data'].get('sample_size')
-        balanced_target_count = config['data'].get('balanced_target_count', 600)
-        test_size = config['data'].get('test_size', 0.2)
-        top_k = config['feature_engineering'].get('top_k', 50)
-        run_visualizations = config['visualizations']['enabled']
-        
-        # Extract enabled models
-        run_ml = {}
-        trad_ml = config['models']['traditional_ml']
-        run_ml['MultinomialNB'] = trad_ml.get('multinomial_nb', {}).get('enabled', False)
-        run_ml['LogisticRegression'] = trad_ml.get('logistic_regression', {}).get('enabled', False)
-        run_ml['RandomForest'] = trad_ml.get('random_forest', {}).get('enabled', False)
-        
-        run_dl_mlp = config['models']['deep_learning']['mlp']['enabled']
-        run_dl_cnn = config['models']['deep_learning']['cnn']['enabled']
-        run_cv_global = trad_ml.get('run_cross_validation', False)
-        run_cv_by_model = trad_ml.get('run_cross_validation_by_model', {})
-        run_cv_flags = {
-            'MultinomialNB': run_cv_by_model.get('multinomial_nb', run_cv_global),
-            'LogisticRegression': run_cv_by_model.get('logistic_regression', run_cv_global),
-            'RandomForest': run_cv_by_model.get('random_forest', run_cv_global),
-        }
-        cv_splits = trad_ml.get('cv_n_splits', 10)
-        model_hyperparams = collect_model_hyperparameters(config, run_ml, run_dl_mlp, run_dl_cnn)
-        
-        # Override training config with JSON values if MLP enabled
-        if run_dl_mlp:
-            mlp_config = config['models']['deep_learning']['mlp']
-            training_config.epochs = mlp_config['epochs']
-            training_config.batch_size = mlp_config['batch_size']
-            training_config.early_stopping_patience = mlp_config['early_stopping_patience']
-            training_config.validation_split = mlp_config['validation_split']
-            training_config.n_cv_splits = mlp_config.get('cv_splits', mlp_config.get('cv_n_splits', 10))
+    csv_path = str(project_root / config['data']['dataset_path'])
+    sample_size = config['data'].get('sample_size')
+    balanced_target_count = config['data'].get('balanced_target_count', 600)
+    test_size = config['data'].get('test_size', 0.2)
+    top_k = config['feature_engineering'].get('top_k', 50)
+    run_visualizations = config['visualizations']['enabled']
+    
+    # Extract enabled models
+    run_ml = {}
+    trad_ml = config['models']['traditional_ml']
+    run_ml['MultinomialNB'] = trad_ml.get('multinomial_nb', {}).get('enabled', False)
+    run_ml['LogisticRegression'] = trad_ml.get('logistic_regression', {}).get('enabled', False)
+    run_ml['RandomForest'] = trad_ml.get('random_forest', {}).get('enabled', False)
+    
+    run_dl_mlp = config['models']['deep_learning']['mlp']['enabled']
+    run_dl_cnn = config['models']['deep_learning']['cnn']['enabled']
+    run_cv_global = trad_ml.get('run_cross_validation', False)
+    run_cv_by_model = trad_ml.get('run_cross_validation_by_model', {})
+    run_cv_flags = {
+        'MultinomialNB': run_cv_by_model.get('multinomial_nb', run_cv_global),
+        'LogisticRegression': run_cv_by_model.get('logistic_regression', run_cv_global),
+        'RandomForest': run_cv_by_model.get('random_forest', run_cv_global),
+    }
+    cv_splits = trad_ml.get('cv_n_splits', 10)
+    model_hyperparams = collect_model_hyperparameters(config, run_ml, run_dl_mlp, run_dl_cnn)
+    
+    # Override training config with JSON values if MLP enabled
+    if run_dl_mlp:
+        mlp_config = config['models']['deep_learning']['mlp']
+        training_config.epochs = mlp_config['epochs']
+        training_config.batch_size = mlp_config['batch_size']
+        training_config.early_stopping_patience = mlp_config['early_stopping_patience']
+        training_config.validation_split = mlp_config['validation_split']
+        training_config.n_cv_splits = mlp_config.get('cv_splits', mlp_config.get('cv_n_splits', 10))
     
     # ====================================
     # Load Data (EXACT logic from main.py lines 62-69)

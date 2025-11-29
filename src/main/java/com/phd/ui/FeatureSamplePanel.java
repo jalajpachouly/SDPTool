@@ -230,6 +230,8 @@ public class FeatureSamplePanel extends JPanel {
     }
 
     public void saveSilently() {
+        // Reload config first to pick up any changes from AITechniquePanel
+        loadConfig();
         persistUiToModel();
         try (FileWriter writer = new FileWriter(configPath)) {
             writer.write(config.toString(2));

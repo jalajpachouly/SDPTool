@@ -85,7 +85,7 @@
       "enabled": false
     }
   },
-  "experiment_name": "Test3",
+  "experiment_name": "T5",
   "feature_engineering": {
     "max_words_per_label": 50,
     "top_k_plot": 20,

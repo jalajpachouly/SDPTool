@@ -141,6 +141,8 @@ public class AITechniquePanel extends JPanel {
         this.multiClassConfigPath = multiClassConfigPath;
         this.multiClassScriptPath = multiClassScriptPath;
         loadConfigs();
+        // Initialize feature engineering fields (not displayed as tab, but needed for config read/write)
+        createFeatureEngineeringPanel();
         setLayout(new BorderLayout());
         setBorder(new EmptyBorder(10, 10, 10, 10));
         add(createHeader(), BorderLayout.NORTH);
