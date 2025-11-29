@@ -61,7 +61,8 @@ public class Home extends Component {
             AITechniquePanel.DEFAULT_MULTILABEL_SCRIPT_PATH,
             AITechniquePanel.DEFAULT_MULTICLASS_CONFIG_PATH,
             AITechniquePanel.DEFAULT_MULTICLASS_SCRIPT_PATH,
-            visualizationPanel
+            visualizationPanel,
+            featureSamplePanel
         );
            PredictionPanel predictionPanel = new PredictionPanel();
 

@@ -226,16 +226,18 @@ public class FeatureSamplePanel extends JPanel {
     }
 
     private void handleSave(ActionEvent event) {
+        saveSilently();
+        if (!GraphicsEnvironment.isHeadless()) {
+            JOptionPane.showMessageDialog(this, "Configuration saved successfully.");
+        }
+    }
+
+    public void saveSilently() {
         persistUiToModel();
         try (FileWriter writer = new FileWriter(configPath)) {
             writer.write(config.toString(2));
-            if (!GraphicsEnvironment.isHeadless()) {
-                JOptionPane.showMessageDialog(this, "Configuration saved successfully.");
-            }
         } catch (Exception e) {
-            if (!GraphicsEnvironment.isHeadless()) {
-                JOptionPane.showMessageDialog(this, "Unable to save configuration: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-            }
+            System.err.println("Failed to save feature/sample config: " + e.getMessage());
         }
     }
 

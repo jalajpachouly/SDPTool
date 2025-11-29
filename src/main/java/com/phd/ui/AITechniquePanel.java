@@ -36,6 +36,7 @@ public class AITechniquePanel extends JPanel {
     private JSONObject multiClassModels;
     
     private VisualizationPanel visualizationPanel;
+    private FeatureSamplePanel featureSamplePanel;
 
     private JTabbedPane problemTabs;
     private JRadioButton mlRadio;
@@ -131,10 +132,10 @@ public class AITechniquePanel extends JPanel {
 
     private boolean updatingUiValues;
     public AITechniquePanel() {
-        this(DEFAULT_MULTILABEL_CONFIG_PATH, DEFAULT_MULTILABEL_SCRIPT_PATH, DEFAULT_MULTICLASS_CONFIG_PATH, DEFAULT_MULTICLASS_SCRIPT_PATH, null);
+        this(DEFAULT_MULTILABEL_CONFIG_PATH, DEFAULT_MULTILABEL_SCRIPT_PATH, DEFAULT_MULTICLASS_CONFIG_PATH, DEFAULT_MULTICLASS_SCRIPT_PATH, null, null);
     }
 
-    public AITechniquePanel(String multiLabelConfigPath, String multiLabelScriptPath, String multiClassConfigPath, String multiClassScriptPath, VisualizationPanel visualizationPanel) {
+    public AITechniquePanel(String multiLabelConfigPath, String multiLabelScriptPath, String multiClassConfigPath, String multiClassScriptPath, VisualizationPanel visualizationPanel, FeatureSamplePanel featureSamplePanel) {
         this.multiLabelConfigPath = multiLabelConfigPath;
         this.multiLabelScriptPath = multiLabelScriptPath;
         this.multiClassConfigPath = multiClassConfigPath;
@@ -743,6 +744,11 @@ public class AITechniquePanel extends JPanel {
     private boolean saveConfigToFile(boolean showSuccessMessage) {
         persistInputsToModel();
         
+        // Also save feature/sample settings if panel is available
+        if (featureSamplePanel != null) {
+            featureSamplePanel.saveSilently();
+        }
+        
         // Also save visualization settings if panel is available
         if (visualizationPanel != null) {
             visualizationPanel.saveSilently();
@@ -753,7 +759,7 @@ public class AITechniquePanel extends JPanel {
         try (FileWriter writer = new FileWriter(configPath)) {
             writer.write(activeConfig.toString(2));
             if (showSuccessMessage && !GraphicsEnvironment.isHeadless()) {
-                JOptionPane.showMessageDialog(this, "Configuration saved successfully (including visualizations).");
+                JOptionPane.showMessageDialog(this, "Configuration saved successfully (all tabs).");
             }
             return true;
         } catch (Exception e) {
