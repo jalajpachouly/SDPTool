@@ -1103,6 +1103,7 @@ if __name__ == "__main__":
                     if p_val is not None and not np.isnan(p_val) and p_val < 0.05:
                         significant_baselines.append(comp["baseline"])
                     f.write(f"<tr><td>{sig['best_model']}</td><td>{comp['baseline']}</td><td>{comp['test']}</td><td>{p_text}</td></tr>")
+                f.write("</table>")
                 if significant_baselines:
                     f.write(f"<p>{sig['best_model']} outperformed {', '.join(significant_baselines)} (p &lt; 0.05).</p>")
                 else:

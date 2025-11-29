@@ -19,15 +19,15 @@
         "enabled": true
       },
       "multinomial_nb": {
-        "use_classifier_chain": false,
-        "enabled": false
+        "use_classifier_chain": true,
+        "enabled": true
       },
       "cv_n_splits": 10,
       "run_cross_validation": false,
       "run_cross_validation_by_model": {
         "random_forest": true,
         "logistic_regression": true,
-        "multinomial_nb": false
+        "multinomial_nb": true
       },
       "enabled": true
     },
