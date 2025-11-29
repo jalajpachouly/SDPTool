@@ -168,9 +168,10 @@ def collect_model_hyperparameters(config, run_ml_flags, run_dl_mlp, run_dl_cnn):
     return params
 
 
-def compute_significance_from_folds(fold_metrics):
+def compute_significance_from_folds(fold_metrics, best_model_override=None):
     """
     Given a mapping of model -> fold-wise F1 scores, compute paired tests against the best model.
+    If best_model_override is provided, use that as the best model instead of calculating from CV scores.
     Returns a dict with best model and comparison rows, or None if not enough data.
     """
     if not fold_metrics:
@@ -183,7 +184,12 @@ def compute_significance_from_folds(fold_metrics):
     if len(cleaned) < 2:
         return None
 
-    best_model, best_scores = max(cleaned.items(), key=lambda kv: np.mean(kv[1]))
+    # Use override if provided and valid, otherwise use CV mean
+    if best_model_override and best_model_override in cleaned:
+        best_model = best_model_override
+        best_scores = cleaned[best_model]
+    else:
+        best_model, best_scores = max(cleaned.items(), key=lambda kv: np.mean(kv[1]))
     comparisons = []
     for model, scores in cleaned.items():
         if model == best_model:
@@ -211,17 +217,56 @@ def compute_significance_from_folds(fold_metrics):
     return {"best_model": best_model, "comparisons": comparisons}
 
 
+def calculate_macro_scores(per_label_results):
+    """
+    Calculate macro-averaged scores from per-label results.
+    
+    Args:
+        per_label_results: List of dictionaries with per-label metrics
+    
+    Returns:
+        Dictionary with Label='MACRO_AVERAGE' and macro-averaged metrics
+    """
+    if not per_label_results:
+        return None
+    
+    # Extract model name (should be same for all entries)
+    model_name = per_label_results[0]['Model']
+    
+    # Calculate macro averages
+    macro_recall = sum(r['Recall'] for r in per_label_results) / len(per_label_results)
+    macro_f1 = sum(r['F1'] for r in per_label_results) / len(per_label_results)
+    macro_hamming = sum(r['Hamming Loss'] for r in per_label_results) / len(per_label_results)
+    
+    return {
+        'Model': model_name,
+        'Label': 'MACRO_AVERAGE',
+        'Recall': macro_recall,
+        'F1': macro_f1,
+        'Hamming Loss': macro_hamming
+    }
+
+
 def plot_model_summary_bar(df_results, data_type, output_dir):
     if df_results is None or df_results.empty:
         return None
-    summary = df_results.groupby('Model')['F1'].mean().reset_index()
+    
+    # Use explicit macro average rows if available
+    macro_results = df_results[df_results['Label'] == 'MACRO_AVERAGE']
+    if not macro_results.empty:
+        summary = macro_results[['Model', 'F1']].copy()
+    else:
+        # Fallback: calculate from per-label data
+        summary = df_results.groupby('Model')['F1'].mean().reset_index()
+    
     if summary.empty:
         return None
+    
     plt.figure(figsize=(8, 5))
     ax = sns.barplot(x='Model', y='F1', data=summary, palette="Blues_d")
     ax.set_ylim(0, 1)
-    ax.set_title(f'Average F1 by Model ({data_type})')
-    ax.set_ylabel('Average F1')
+    ax.set_title(f'Macro F1-Score by Model ({data_type})')
+    ax.set_ylabel('Macro F1-Score')
     ax.set_xlabel('Model')
     plt.xticks(rotation=20)
     Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -232,24 +277,70 @@ def plot_model_summary_bar(df_results, data_type, output_dir):
     return chart_path
 
 
+def generate_model_ranking_table(df_results):
+    """
+    Generate a ranking table comparing models by macro F1-score.
+    
+    Args:
+        df_results: DataFrame with evaluation results
+    
+    Returns:
+        Dictionary with ranking information
+    """
+    if df_results is None or df_results.empty:
+        return None
+    
+    # Filter for macro average rows
+    macro_results = df_results[df_results['Label'] == 'MACRO_AVERAGE']
+    if macro_results.empty:
+        # Fallback: calculate from per-label data
+        macro_results = df_results.groupby('Model').agg({
+            'F1': 'mean',
+            'Recall': 'mean',
+            'Hamming Loss': 'mean'
+        }).reset_index()
+    else:
+        macro_results = macro_results[['Model', 'F1', 'Recall', 'Hamming Loss']].copy()
+    
+    # Sort by F1-score descending
+    macro_results = macro_results.sort_values('F1', ascending=False).reset_index(drop=True)
+    macro_results['Rank'] = range(1, len(macro_results) + 1)
+    
+    return {
+        'ranking': macro_results,
+        'best_model': macro_results.iloc[0]['Model'] if not macro_results.empty else None,
+        'best_f1': macro_results.iloc[0]['F1'] if not macro_results.empty else None
+    }
+
+
 def plot_combined_model_comparison(all_results, data_types, run_folder):
     frames = []
     for data_type in data_types:
         df = all_results.get(data_type)
         if df is None or df.empty:
             continue
-        summary = df.groupby('Model')['F1'].mean().reset_index()
+        
+        # Use explicit macro average rows if available
+        macro_results = df[df['Label'] == 'MACRO_AVERAGE']
+        if not macro_results.empty:
+            summary = macro_results[['Model', 'F1']].copy()
+        else:
+            # Fallback: calculate from per-label data
+            summary = df.groupby('Model')['F1'].mean().reset_index()
+        
         summary['DataType'] = data_type
         frames.append(summary)
+    
     if not frames:
         return None
+    
     combined = pd.concat(frames, ignore_index=True)
     plt.figure(figsize=(9, 5))
     ax = sns.barplot(data=combined, x='Model', y='F1', hue='DataType')
     ax.set_ylim(0, 1)
-    ax.set_title('Average F1 by Model (Balanced vs Unbalanced)')
+    ax.set_title('Macro F1-Score by Model (Balanced vs Unbalanced)')
     plt.xticks(rotation=20)
-    plt.ylabel('Average F1')
+    plt.ylabel('Macro F1-Score')
     plt.xlabel('Model')
     plt.legend(title='Data Type')
     chart_path = run_folder / 'model_f1_comparison.png'
@@ -269,19 +360,29 @@ def plot_metric_comparisons(all_results, data_types, run_folder):
             df = all_results.get(data_type)
             if df is None or df.empty or metric not in df.columns:
                 continue
-            summary = df.groupby('Model')[metric].mean().reset_index()
+            
+            # Use explicit macro average rows if available
+            macro_results = df[df['Label'] == 'MACRO_AVERAGE']
+            if not macro_results.empty:
+                summary = macro_results[['Model', metric]].copy()
+            else:
+                # Fallback: calculate from per-label data
+                summary = df.groupby('Model')[metric].mean().reset_index()
+            
             summary['DataType'] = data_type
             frames.append(summary)
+        
         if not frames:
             continue
+        
         combined = pd.concat(frames, ignore_index=True)
         plt.figure(figsize=(9, 5))
         ax = sns.barplot(data=combined, x='Model', y=metric, hue='DataType')
         if metric != 'Hamming Loss':
             ax.set_ylim(0, 1)
-        ax.set_title(f'Average {metric} by Model (Balanced vs Unbalanced)')
+        ax.set_title(f'Macro {metric} by Model (Balanced vs Unbalanced)')
         plt.xticks(rotation=20)
-        plt.ylabel(metric)
+        plt.ylabel(f'Macro {metric}')
         plt.xlabel('Model')
         plt.legend(title='Data Type')
         chart_path = run_folder / f"{metric.lower().replace(' ', '_')}_by_model_comparison.png"
@@ -555,11 +656,17 @@ def main(
         results = evaluate_classifier(clf, model_name, X_train_tfidf, y_train_np, X_test_tfidf, y_test_np, label_names)
         log_task(model_name, 100, "Evaluation complete")
         all_results.extend(results)
+        
+        # Calculate and add macro average
+        macro_scores = calculate_macro_scores(results)
+        if macro_scores:
+            all_results.append(macro_scores)
+        
         # Log metrics
         if results:
             avg_f1 = sum(r['F1'] for r in results) / len(results)
             avg_recall = sum(r['Recall'] for r in results) / len(results)
-            print(f"  {model_name} → Avg F1: {avg_f1:.4f}, Avg Recall: {avg_recall:.4f}")
+            print(f"  {model_name} → Macro F1: {avg_f1:.4f}, Macro Recall: {avg_recall:.4f}")
 
     # ====================================
     # Deep Learning Model - MLP (EXACT logic from main.py lines 122-152)
@@ -613,8 +720,16 @@ def main(
         # Evaluate Deep Learning Model on Test Set
         results_dl = evaluate_deep_learning_model(deep_learning_model, X_test_tfidf, y_test_np, 'MLP', label_names)
         all_results.extend(results_dl)
+        
+        # Calculate and add macro average
+        macro_scores = calculate_macro_scores(results_dl)
+        if macro_scores:
+            all_results.append(macro_scores)
+        
         log_task("MLP", 100, "MLP evaluation complete")
-        print(f"  MLP → Avg F1: {sum(r['F1'] for r in results_dl)/len(results_dl):.4f}")
+        if results_dl:
+            avg_f1 = sum(r['F1'] for r in results_dl) / len(results_dl)
+            print(f"  MLP → Macro F1: {avg_f1:.4f}")
 
     # ====================================
     # Prepare Data for CNN (EXACT logic from main.py lines 154-160)
@@ -684,8 +799,16 @@ def main(
         # Evaluate CNN Model on Test Set
         results_cnn = evaluate_deep_learning_model(cnn_model, X_test_dl, y_test_np, 'CNN', label_names)
         all_results.extend(results_cnn)
+        
+        # Calculate and add macro average
+        macro_scores = calculate_macro_scores(results_cnn)
+        if macro_scores:
+            all_results.append(macro_scores)
+        
         log_task("CNN", 100, "CNN evaluation complete")
-        print(f"  CNN → Avg F1: {sum(r['F1'] for r in results_cnn)/len(results_cnn):.4f}")
+        if results_cnn:
+            avg_f1 = sum(r['F1'] for r in results_cnn) / len(results_cnn)
+            print(f"  CNN → Macro F1: {avg_f1:.4f}")
 
     # ====================================
     # Combine Results and Visualize (EXACT logic from main.py lines 184-194)
@@ -772,14 +895,35 @@ def main(
 
             f.write("<section id='performance'>")
             f.write("<h2>3. Model Performance</h2>")
+            
+            # Add Model Ranking Table
+            f.write("<h3>3.1 Model Rankings by Macro F1-Score</h3>")
+            for data_type in data_types:
+                results = all_results.get(data_type)
+                if results is not None and not results.empty:
+                    ranking_info = generate_model_ranking_table(results)
+                    if ranking_info:
+                        f.write(f"<h4>{data_type} Data</h4>")
+                        ranking_df = ranking_info['ranking']
+                        f.write("<table border='1' style='margin-bottom:20px;'>")
+                        f.write("<tr><th>Rank</th><th>Model</th><th>Macro F1</th><th>Macro Recall</th><th>Hamming Loss</th></tr>")
+                        for _, row in ranking_df.iterrows():
+                            f.write(f"<tr><td>{int(row['Rank'])}</td><td><strong>{row['Model']}</strong></td>")
+                            f.write(f"<td>{row['F1']:.4f}</td><td>{row['Recall']:.4f}</td><td>{row['Hamming Loss']:.4f}</td></tr>")
+                        f.write("</table>")
+                        if ranking_info['best_model']:
+                            f.write(f"<p><strong>Best Model:</strong> {ranking_info['best_model']} with Macro F1 = {ranking_info['best_f1']:.4f}</p>")
+            
             if all_results:
-                f.write("<h3>3.1 Metric Table (All Models, Both Data Types)</h3>")
+                f.write("<h3>3.2 Detailed Metrics (All Models, All Labels)</h3>")
                 f.write("<table border='1'><tr><th>Data Type</th><th>Model</th><th>Label</th><th>Recall</th><th>F1</th><th>Hamming Loss</th></tr>")
                 for data_type in data_types:
                     results = all_results.get(data_type)
                     if results is None:
                         continue
-                    for _, r in results.iterrows():
+                    # Filter out macro rows for detailed table
+                    detailed_results = results[results['Label'] != 'MACRO_AVERAGE']
+                    for _, r in detailed_results.iterrows():
                         f.write(f"<tr><td>{data_type}</td><td>{r['Model']}</td><td>{r['Label']}</td><td>{r['Recall']:.4f}</td><td>{r['F1']:.4f}</td><td>{r['Hamming Loss']:.4f}</td></tr>")
                 f.write("</table>")
                 links = []
@@ -795,14 +939,14 @@ def main(
             if run_visualizations:
                 # Cross-dataset model comparison
                 if comparison_chart_path or cross_metric_charts:
-                    f.write("<h3>3.2 Model Comparison: Balanced vs Unbalanced</h3>")
+                    f.write("<h3>3.3 Model Comparison: Balanced vs Unbalanced</h3>")
                     if comparison_chart_path:
-                        render_img(Path(comparison_chart_path).name, "Average F1 by Model (Balanced vs Unbalanced)")
+                        render_img(Path(comparison_chart_path).name, "Macro F1-Score by Model (Balanced vs Unbalanced)")
                     for metric, chart_path in (cross_metric_charts or {}).items():
-                        render_img(Path(chart_path).name, f"Average {metric} by Model (Balanced vs Unbalanced)")
+                        render_img(Path(chart_path).name, f"Macro {metric} by Model (Balanced vs Unbalanced)")
 
                 # Label trends
-                f.write("<h3>3.3 Label-Level Trends</h3>")
+                f.write("<h3>3.4 Label-Level Trends</h3>")
                 plt.figure(figsize=(8,5))
                 plotted = False
                 for data_type in data_types:
@@ -822,18 +966,18 @@ def main(
                     chart_names_for_metadata.append('f1_comparison.png')
 
                 # Per-data-type summaries
-                f.write("<h3>3.4 Per Data-Type Model Summaries</h3>")
+                f.write("<h3>3.5 Per Data-Type Model Summaries</h3>")
                 for data_type in data_types:
                     chart_name = summary_charts.get(data_type)
                     if chart_name:
-                        render_img(chart_name, f"Average F1 by Model ({data_type})")
+                        render_img(chart_name, f"Macro F1-Score by Model ({data_type})")
                         chart_names_for_metadata.append(chart_name)
 
                 # Per-data-type detailed charts
                 for data_type in data_types:
                     charts = performance_charts_by_type.get(data_type) or []
                     if charts:
-                        f.write(f"<h3>3.5 Detailed Performance Views ({data_type})</h3>")
+                        f.write(f"<h3>3.6 Detailed Performance Views ({data_type})</h3>")
                         caption_map = {
                             "recall_by_model_label": "Recall by Model and Label",
                             "f1_by_model_label": "F1 by Model and Label",
@@ -1082,12 +1226,20 @@ if __name__ == "__main__":
         f.write("<h3>3.2 Statistical Significance Testing</h3>")
         any_sig = False
         for data_type in data_types:
-            sig = compute_significance_from_folds(fold_metrics_by_type.get(data_type))
+            # Get best model from test set ranking (Section 3.1) to use for significance testing
+            results = all_results.get(data_type)
+            best_model_from_test = None
+            if results is not None and not results.empty:
+                ranking_info = generate_model_ranking_table(results)
+                if ranking_info:
+                    best_model_from_test = ranking_info['best_model']
+            
+            sig = compute_significance_from_folds(fold_metrics_by_type.get(data_type), best_model_override=best_model_from_test)
             if not sig:
                 continue
             any_sig = True
             f.write(f"<h4>{data_type}</h4>")
-            f.write("<p>Paired tests on fold-wise macro-F1 (Wilcoxon signed-rank; fallback to paired t-test for tied folds).</p>")
+            f.write("<p>Paired tests on fold-wise macro-F1 from cross-validation, comparing against best model from final test set (Wilcoxon signed-rank; fallback to paired t-test for tied folds).</p>")
             comps = sig.get("comparisons") or []
             if comps:
                 f.write("<table border='1'><tr><th>Best Model</th><th>Baseline</th><th>Test</th><th>p-value</th></tr>")
@@ -1113,10 +1265,13 @@ if __name__ == "__main__":
             plt.figure(figsize=(8,5))
             for data_type in data_types:
                 results = all_results.get(data_type)
-                if results is not None:
-                    plt.plot(results['Label'], results['F1'], marker='o', label=data_type)
+                if results is not None and not results.empty:
+                    # Filter out macro average rows for per-label trend
+                    per_label_results = results[results['Label'] != 'MACRO_AVERAGE']
+                    if not per_label_results.empty:
+                        plt.plot(per_label_results['Label'], per_label_results['F1'], marker='o', label=data_type)
             plt.legend()
-            plt.title('F1 Score Comparison')
+            plt.title('F1 Score Comparison (Per Label)')
             plt.xlabel('Label')
             plt.ylabel('F1 Score')
             img_path = run_folder / 'f1_comparison.png'
@@ -1126,7 +1281,7 @@ if __name__ == "__main__":
             f.write(f"<div><img src='f1_comparison.png' style='max-width:600px;'><br>f1_comparison.png</div><br>")
             if comparison_chart_path:
                 chart_names_for_metadata.append(Path(comparison_chart_path).name)
-                f.write("<h3>3.4 Average F1 by Model</h3>")
+                f.write("<h3>3.4 Macro F1-Score by Model</h3>")
                 f.write(f"<div><img src='{Path(comparison_chart_path).name}' style='max-width:600px;'><br>{Path(comparison_chart_path).name}</div><br>")
             f.write("<h3>3.5 Per Data-Type Summaries</h3>")
             for data_type in data_types:
