@@ -653,7 +653,7 @@ public class AITechniquePanel extends JPanel {
             sourceButton.setEnabled(false);
             sourceButton.setText("Running...");
         }
-        setProgressState("⟳ Starting...", true, 0, Color.BLUE);
+        setProgressState("Starting...", true, 0, Color.BLUE);
 
         SwingWorker<Void, String> worker = new SwingWorker<>() {
             private String outputText = "";
@@ -824,7 +824,7 @@ public class AITechniquePanel extends JPanel {
                             taskProgressBar.setVisible(true);
                             taskProgressBar.setIndeterminate(false);
                             taskProgressBar.setValue(percent);
-                            taskProgressBar.setString("⟳ " + message);
+                            taskProgressBar.setString( message);
                             taskStatusLabel.setText("Model: " + parts[0]);
                         });
                     } catch (NumberFormatException ignored) {}

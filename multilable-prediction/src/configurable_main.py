@@ -779,6 +779,8 @@ def main(
         print(f"\nCNN Cross-validation results:")
         print(f"Recall: {cnn_cv_scores['Recall']:.4f}")
         print(f"F1-score: {cnn_cv_scores['F1']:.4f}")
+        if cnn_cv_scores.get('fold_f1'):
+            fold_metrics['CNN'] = cnn_cv_scores['fold_f1']
 
         # Train CNN Model on Entire Training Set
         log_task("CNN", 60, "Training on full dataset...")
