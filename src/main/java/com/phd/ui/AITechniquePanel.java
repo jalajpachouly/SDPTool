@@ -805,7 +805,7 @@ public class AITechniquePanel extends JPanel {
                             runProgressBar.setIndeterminate(false);
                             runProgressBar.setValue(percent);
                             runProgressBar.setString(message);
-                            runStatusLabel.setText(message);
+                            runStatusLabel.setText("Status: Running");
                             runStatusLabel.setForeground(Color.BLUE);
                         });
                     } catch (NumberFormatException ignored) {}
@@ -824,8 +824,8 @@ public class AITechniquePanel extends JPanel {
                             taskProgressBar.setVisible(true);
                             taskProgressBar.setIndeterminate(false);
                             taskProgressBar.setValue(percent);
-                            taskProgressBar.setString(message);
-                            taskStatusLabel.setText(parts[0]);
+                            taskProgressBar.setString("⟳ " + message);
+                            taskStatusLabel.setText("Model: " + parts[0]);
                         });
                     } catch (NumberFormatException ignored) {}
                 }

@@ -905,10 +905,10 @@ def main(
                     if ranking_info:
                         f.write(f"<h4>{data_type} Data</h4>")
                         ranking_df = ranking_info['ranking']
-                        f.write("<table border='1' style='margin-bottom:20px;'>")
+                        f.write("<table border='1' style='margin-bottom:20px; border-collapse:collapse;'>")
                         f.write("<tr><th>Rank</th><th>Model</th><th>Macro F1</th><th>Macro Recall</th><th>Hamming Loss</th></tr>")
                         for _, row in ranking_df.iterrows():
-                            f.write(f"<tr><td>{int(row['Rank'])}</td><td><strong>{row['Model']}</strong></td>")
+                            f.write(f"<tr style='border-top: 2px solid #333;'><td>{int(row['Rank'])}</td><td><strong>{row['Model']}</strong></td>")
                             f.write(f"<td>{row['F1']:.4f}</td><td>{row['Recall']:.4f}</td><td>{row['Hamming Loss']:.4f}</td></tr>")
                         f.write("</table>")
                         if ranking_info['best_model']:
@@ -916,15 +916,16 @@ def main(
             
             if all_results:
                 f.write("<h3>3.2 Detailed Metrics (All Models, All Labels)</h3>")
-                f.write("<table border='1'><tr><th>Data Type</th><th>Model</th><th>Label</th><th>Recall</th><th>F1</th><th>Hamming Loss</th></tr>")
+                f.write("<style>.macro-row { background-color: #f0f8ff; font-weight: bold; border-top: 3px solid #2c5aa0 !important; }</style>")
+                f.write("<table border='1' style='border-collapse:collapse;'><tr><th>Data Type</th><th>Model</th><th>Label</th><th>Recall</th><th>F1</th><th>Hamming Loss</th></tr>")
                 for data_type in data_types:
                     results = all_results.get(data_type)
                     if results is None:
                         continue
-                    # Filter out macro rows for detailed table
-                    detailed_results = results[results['Label'] != 'MACRO_AVERAGE']
-                    for _, r in detailed_results.iterrows():
-                        f.write(f"<tr><td>{data_type}</td><td>{r['Model']}</td><td>{r['Label']}</td><td>{r['Recall']:.4f}</td><td>{r['F1']:.4f}</td><td>{r['Hamming Loss']:.4f}</td></tr>")
+                    for _, r in results.iterrows():
+                        # Add special styling for MACRO_AVERAGE rows
+                        row_class = " class='macro-row'" if r['Label'] == 'MACRO_AVERAGE' else ""
+                        f.write(f"<tr{row_class}><td>{data_type}</td><td>{r['Model']}</td><td>{r['Label']}</td><td>{r['Recall']:.4f}</td><td>{r['F1']:.4f}</td><td>{r['Hamming Loss']:.4f}</td></tr>")
                 f.write("</table>")
                 links = []
                 for dt in data_types:
