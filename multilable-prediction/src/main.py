@@ -2,9 +2,12 @@
 Multi-Label Classification for Bug Reports
 
 This refactored script uses modular utilities for better code organization.
+Now supports feature flags via ui_config.json for model execution control.
 """
 
 # Standard library imports
+import json
+from pathlib import Path
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -48,13 +51,183 @@ nltk.download('wordnet', quiet=True)
 nltk.download('stopwords', quiet=True)
 
 
+# =============================================================================
+# DEFAULT CONFIGURATION CONSTANTS
+# =============================================================================
+
+# Feature Engineering Defaults
+DEFAULT_TOP_K = 50
+DEFAULT_TOP_K_PLOT = 20
+DEFAULT_USE_WORDCLOUD_VOCABULARY = True
+
+# Traditional ML Model Defaults
+DEFAULT_MULTINOMIAL_NB_ENABLED = True
+DEFAULT_LOGISTIC_REGRESSION_ENABLED = True
+DEFAULT_LOGISTIC_REGRESSION_MAX_ITER = 10000
+DEFAULT_RANDOM_FOREST_ENABLED = True
+DEFAULT_RANDOM_FOREST_N_ESTIMATORS = 100
+DEFAULT_RANDOM_FOREST_RANDOM_STATE = 42
+DEFAULT_USE_CLASSIFIER_CHAIN = True
+
+# MLP Deep Learning Defaults
+DEFAULT_MLP_ENABLED = True
+DEFAULT_MLP_CV_N_SPLITS = 5
+DEFAULT_MLP_EPOCHS = 50
+DEFAULT_MLP_BATCH_SIZE = 32
+DEFAULT_MLP_VALIDATION_SPLIT = 0.2
+DEFAULT_MLP_EARLY_STOPPING_PATIENCE = 5
+
+# CNN Deep Learning Defaults
+DEFAULT_CNN_ENABLED = True
+DEFAULT_CNN_CV_N_SPLITS = 10
+DEFAULT_CNN_CV_EPOCHS = 10
+DEFAULT_CNN_CV_BATCH_SIZE = 32
+DEFAULT_CNN_EPOCHS = 20
+DEFAULT_CNN_BATCH_SIZE = 32
+DEFAULT_CNN_MAX_WORDS = 5000
+DEFAULT_CNN_MAX_LEN = 100
+DEFAULT_CNN_EMBEDDING_DIM = 100
+DEFAULT_CNN_EARLY_STOPPING_PATIENCE = 5
+
+# Cross-Validation Defaults
+DEFAULT_RUN_CROSS_VALIDATION = True
+
+# Visualization Defaults
+DEFAULT_VISUALIZATIONS_ENABLED = True
+DEFAULT_WORDCLOUDS_ENABLED = True
+DEFAULT_DESCRIPTION_LENGTH_ENABLED = True
+DEFAULT_CLASS_DISTRIBUTION_ENABLED = True
+DEFAULT_CORRELATION_MATRIX_ENABLED = True
+DEFAULT_TOP_FEATURES_ENABLED = True
+DEFAULT_F1_SCORES_ENABLED = True
+
+# Data Processing Defaults
+DEFAULT_RUN_BALANCED = True
+DEFAULT_RUN_UNBALANCED = True
+
+
+def load_ui_config(config_path='configs/ui_config.json'):
+    """
+    Load UI configuration from JSON file.
+    If file doesn't exist or has errors, return None to use defaults.
+    """
+    config_file = Path(config_path)
+    if not config_file.exists():
+        print(f"[INFO] UI config file not found: {config_path}")
+        print(f"[INFO] Using default configuration constants")
+        return None
+    
+    try:
+        with open(config_file, 'r') as f:
+            config = json.load(f)
+        print(f"[OK] Loaded UI configuration from: {config_path}")
+        return config
+    except Exception as e:
+        print(f"[WARNING] Error loading UI config: {e}")
+        print(f"[INFO] Using default configuration constants")
+        return None
+
+
+def get_config_value(ui_config, path, default_value):
+    """
+    Safely extract nested configuration value from ui_config.
+    If not found, use default and log it.
+    
+    Args:
+        ui_config: Loaded JSON config dict (or None)
+        path: Dot-separated path like 'models.traditional_ml.random_forest.enabled'
+        default_value: Default to use if not found
+    
+    Returns:
+        Configuration value or default
+    """
+    if ui_config is None:
+        return default_value
+    
+    keys = path.split('.')
+    value = ui_config
+    
+    try:
+        for key in keys:
+            value = value[key]
+        return value
+    except (KeyError, TypeError):
+        print(f"[INFO] Config '{path}' not found, using default: {default_value}")
+        return default_value
+
+
 def main(data_type='Unbalanced'):
     """
     Main function to execute data processing, model training, evaluation, and visualization.
+    Now supports feature flags from ui_config.json.
 
     Parameters:
     - data_type (str): Type of data to process ('Unbalanced' or 'Balanced').
     """
+    # Load UI configuration
+    ui_config = load_ui_config()
+    
+    # Extract configuration values with defaults
+    print("\n" + "="*80)
+    print(f"CONFIGURATION FOR {data_type.upper()} DATA")
+    print("="*80)
+    
+    # Feature Engineering Config
+    top_k = get_config_value(ui_config, 'feature_engineering.top_k', DEFAULT_TOP_K)
+    top_k_plot = get_config_value(ui_config, 'feature_engineering.top_k_plot', DEFAULT_TOP_K_PLOT)
+    use_wordcloud_vocab = get_config_value(ui_config, 'feature_engineering.use_wordcloud_vocabulary', DEFAULT_USE_WORDCLOUD_VOCABULARY)
+    
+    # Traditional ML Config
+    enable_multinomial_nb = get_config_value(ui_config, 'models.traditional_ml.multinomial_nb.enabled', DEFAULT_MULTINOMIAL_NB_ENABLED)
+    enable_logistic_regression = get_config_value(ui_config, 'models.traditional_ml.logistic_regression.enabled', DEFAULT_LOGISTIC_REGRESSION_ENABLED)
+    logistic_max_iter = get_config_value(ui_config, 'models.traditional_ml.logistic_regression.max_iter', DEFAULT_LOGISTIC_REGRESSION_MAX_ITER)
+    enable_random_forest = get_config_value(ui_config, 'models.traditional_ml.random_forest.enabled', DEFAULT_RANDOM_FOREST_ENABLED)
+    rf_n_estimators = get_config_value(ui_config, 'models.traditional_ml.random_forest.n_estimators', DEFAULT_RANDOM_FOREST_N_ESTIMATORS)
+    rf_random_state = get_config_value(ui_config, 'models.traditional_ml.random_forest.random_state', DEFAULT_RANDOM_FOREST_RANDOM_STATE)
+    use_classifier_chain = get_config_value(ui_config, 'models.traditional_ml.multinomial_nb.use_classifier_chain', DEFAULT_USE_CLASSIFIER_CHAIN)
+    
+    # MLP Config
+    enable_mlp = get_config_value(ui_config, 'models.deep_learning.mlp.enabled', DEFAULT_MLP_ENABLED)
+    mlp_cv_n_splits = get_config_value(ui_config, 'models.deep_learning.mlp.cv_n_splits', DEFAULT_MLP_CV_N_SPLITS)
+    mlp_epochs = get_config_value(ui_config, 'models.deep_learning.mlp.epochs', DEFAULT_MLP_EPOCHS)
+    mlp_batch_size = get_config_value(ui_config, 'models.deep_learning.mlp.batch_size', DEFAULT_MLP_BATCH_SIZE)
+    mlp_validation_split = get_config_value(ui_config, 'models.deep_learning.mlp.validation_split', DEFAULT_MLP_VALIDATION_SPLIT)
+    mlp_early_stopping_patience = get_config_value(ui_config, 'models.deep_learning.mlp.early_stopping_patience', DEFAULT_MLP_EARLY_STOPPING_PATIENCE)
+    
+    # CNN Config
+    enable_cnn = get_config_value(ui_config, 'models.deep_learning.cnn.enabled', DEFAULT_CNN_ENABLED)
+    cnn_cv_n_splits = get_config_value(ui_config, 'models.deep_learning.cnn.cv_n_splits', DEFAULT_CNN_CV_N_SPLITS)
+    cnn_cv_epochs = get_config_value(ui_config, 'models.deep_learning.cnn.cv_epochs', DEFAULT_CNN_CV_EPOCHS)
+    cnn_cv_batch_size = get_config_value(ui_config, 'models.deep_learning.cnn.cv_batch_size', DEFAULT_CNN_CV_BATCH_SIZE)
+    cnn_epochs = get_config_value(ui_config, 'models.deep_learning.cnn.epochs', DEFAULT_CNN_EPOCHS)
+    cnn_batch_size = get_config_value(ui_config, 'models.deep_learning.cnn.batch_size', DEFAULT_CNN_BATCH_SIZE)
+    cnn_max_words = get_config_value(ui_config, 'models.deep_learning.cnn.max_words', DEFAULT_CNN_MAX_WORDS)
+    cnn_max_len = get_config_value(ui_config, 'models.deep_learning.cnn.max_len', DEFAULT_CNN_MAX_LEN)
+    cnn_embedding_dim = get_config_value(ui_config, 'models.deep_learning.cnn.embedding_dim', DEFAULT_CNN_EMBEDDING_DIM)
+    cnn_early_stopping_patience = get_config_value(ui_config, 'models.deep_learning.cnn.early_stopping_patience', DEFAULT_CNN_EARLY_STOPPING_PATIENCE)
+    
+    # Cross-Validation Config (global flag)
+    run_cross_validation = get_config_value(ui_config, 'models.traditional_ml.run_cross_validation', DEFAULT_RUN_CROSS_VALIDATION)
+    
+    # Visualization Config
+    viz_enabled = get_config_value(ui_config, 'visualizations.enabled', DEFAULT_VISUALIZATIONS_ENABLED)
+    viz_wordclouds = get_config_value(ui_config, 'visualizations.word_clouds', DEFAULT_WORDCLOUDS_ENABLED)
+    viz_description_length = get_config_value(ui_config, 'visualizations.description_length', DEFAULT_DESCRIPTION_LENGTH_ENABLED)
+    viz_class_distribution = get_config_value(ui_config, 'visualizations.class_distribution', DEFAULT_CLASS_DISTRIBUTION_ENABLED)
+    viz_correlation_matrix = get_config_value(ui_config, 'visualizations.correlation_matrix', DEFAULT_CORRELATION_MATRIX_ENABLED)
+    viz_top_features = get_config_value(ui_config, 'visualizations.top_features', DEFAULT_TOP_FEATURES_ENABLED)
+    viz_f1_scores = get_config_value(ui_config, 'visualizations.f1_scores', DEFAULT_F1_SCORES_ENABLED)
+    
+    print("\n[MODELS ENABLED]")
+    print(f"  MultinomialNB: {enable_multinomial_nb}")
+    print(f"  LogisticRegression: {enable_logistic_regression}")
+    print(f"  RandomForest: {enable_random_forest}")
+    print(f"  MLP: {enable_mlp}")
+    print(f"  CNN: {enable_cnn}")
+    print(f"  Cross-Validation: {run_cross_validation}")
+    print(f"  Visualizations: {viz_enabled}")
+    print("="*80 + "\n")
+    
     config = TrainingConfig()
     
     # Load Data
@@ -68,22 +241,31 @@ def main(data_type='Unbalanced'):
         print(f"Error loading data: {e}")
         return
 
-    # Visualizations
-    visualize_description_length(X_train_df, data_type)
-    visualize_class_distribution(y_train_df, y_test_df, data_type)
-    visualize_correlation_matrix(y_train_df, data_type)
+    # Visualizations (feature-flagged)
+    if viz_enabled:
+        if viz_description_length:
+            visualize_description_length(X_train_df, data_type)
+        if viz_class_distribution:
+            visualize_class_distribution(y_train_df, y_test_df, data_type)
+        if viz_correlation_matrix:
+            visualize_correlation_matrix(y_train_df, data_type)
 
-    # Word Clouds and Vocabulary Collection
-    vocab_set = set()
-    for label in LABELS:
-        top_words = visualize_word_cloud(X_train_df, y_train_df, label)
-        vocab_set.update(top_words)
-
-    wordcloud_vocab = list(vocab_set)
-    print(f"\nTotal unique words collected from word clouds: {len(wordcloud_vocab)}")
+    # Word Clouds and Vocabulary Collection (feature-flagged)
+    wordcloud_vocab = []
+    if viz_enabled and viz_wordclouds and use_wordcloud_vocab:
+        vocab_set = set()
+        for label in LABELS:
+            top_words = visualize_word_cloud(X_train_df, y_train_df, label)
+            vocab_set.update(top_words)
+        wordcloud_vocab = list(vocab_set)
+        print(f"\nTotal unique words collected from word clouds: {len(wordcloud_vocab)}")
+    elif use_wordcloud_vocab:
+        print("[INFO] Wordcloud vocabulary requested but wordclouds disabled, using None")
+        wordcloud_vocab = None
+    else:
+        wordcloud_vocab = None
 
     # Prepare Data with Vocabulary
-    top_k = 50
     try:
         X_train_tfidf, X_test_tfidf, selected_features, chi2_scores_max, vector = prepare_data(
             X_train_df, X_test_df, y_train_df, top_k=top_k, vocabulary=wordcloud_vocab
@@ -100,115 +282,221 @@ def main(data_type='Unbalanced'):
     y_test_np = y_test_df.to_numpy()
     label_names = y_test_df.columns.tolist()
 
-    # Plot Top Features
-    plot_top_features(selected_features, chi2_scores_max, data_type, top_k_plot=20)
+    # Plot Top Features (feature-flagged)
+    if viz_enabled and viz_top_features:
+        plot_top_features(selected_features, chi2_scores_max, data_type, top_k_plot=top_k_plot)
 
-    # Define Classifiers
-    clf1 = ClassifierChain(MultinomialNB())
-    clf2 = ClassifierChain(LogisticRegression(max_iter=10000))
-    clf3 = ClassifierChain(RandomForestClassifier(n_estimators=100, random_state=42))
+    # =============================================================================
+    # TRADITIONAL ML MODELS (Feature-Flagged)
+    # =============================================================================
+    
+    traditional_ml_results = []
+    classifiers_to_run = []
+    
+    # Define Classifiers based on feature flags
+    if enable_multinomial_nb:
+        if use_classifier_chain:
+            clf_nb = ClassifierChain(MultinomialNB())
+        else:
+            clf_nb = MultinomialNB()
+        classifiers_to_run.append((clf_nb, 'MultinomialNB'))
+        print("[INFO] MultinomialNB enabled")
+    
+    if enable_logistic_regression:
+        if use_classifier_chain:
+            clf_lr = ClassifierChain(LogisticRegression(max_iter=logistic_max_iter))
+        else:
+            clf_lr = LogisticRegression(max_iter=logistic_max_iter)
+        classifiers_to_run.append((clf_lr, 'LogisticRegression'))
+        print(f"[INFO] LogisticRegression enabled (max_iter={logistic_max_iter})")
+    
+    if enable_random_forest:
+        if use_classifier_chain:
+            clf_rf = ClassifierChain(RandomForestClassifier(n_estimators=rf_n_estimators, random_state=rf_random_state))
+        else:
+            clf_rf = RandomForestClassifier(n_estimators=rf_n_estimators, random_state=rf_random_state)
+        classifiers_to_run.append((clf_rf, 'RandomForest'))
+        print(f"[INFO] RandomForest enabled (n_estimators={rf_n_estimators})")
 
-    # Cross-Validation for Traditional Models
-    meth_cv = []
-    for clf, model_name in zip([clf1, clf2, clf3], ['MultinomialNB', 'LogisticRegression', 'RandomForest']):
-        print(f"\n===== Cross-Validating {model_name} =====")
-        cv_scores = cross_validation_score_multilabel(clf, X_train_tfidf, y_train_np)
-        meth_cv.append({'Model': model_name, 'Recall': cv_scores['Recall'], 'F1': cv_scores['F1']})
-    meth_cv = pd.DataFrame(meth_cv)
-    print("\nCross-validation results:")
-    print(meth_cv[['Model', 'Recall', 'F1']])
+    # Cross-Validation for Traditional Models (feature-flagged)
+    if run_cross_validation and classifiers_to_run:
+        print("\n" + "="*80)
+        print("CROSS-VALIDATION FOR TRADITIONAL ML MODELS")
+        print("="*80)
+        meth_cv = []
+        for clf, model_name in classifiers_to_run:
+            print(f"\n===== Cross-Validating {model_name} =====")
+            cv_scores = cross_validation_score_multilabel(clf, X_train_tfidf, y_train_np)
+            meth_cv.append({'Model': model_name, 'Recall': cv_scores['Recall'], 'F1': cv_scores['F1']})
+        meth_cv = pd.DataFrame(meth_cv)
+        print("\nCross-validation results:")
+        print(meth_cv[['Model', 'Recall', 'F1']])
 
     # Evaluate Classifiers on Test Set
-    results_nb = evaluate_classifier(clf1, 'MultinomialNB', X_train_tfidf, y_train_np, X_test_tfidf, y_test_np, label_names)
-    results_lr = evaluate_classifier(clf2, 'LogisticRegression', X_train_tfidf, y_train_np, X_test_tfidf, y_test_np, label_names)
-    results_rf = evaluate_classifier(clf3, 'RandomForest', X_train_tfidf, y_train_np, X_test_tfidf, y_test_np, label_names)
+    if classifiers_to_run:
+        print("\n" + "="*80)
+        print("TEST SET EVALUATION FOR TRADITIONAL ML MODELS")
+        print("="*80)
+        for clf, model_name in classifiers_to_run:
+            print(f"\n===== Evaluating {model_name} on Test Set =====")
+            results = evaluate_classifier(clf, model_name, X_train_tfidf, y_train_np, X_test_tfidf, y_test_np, label_names)
+            traditional_ml_results.extend(results)
 
-    # Deep Learning Model - Cross-Validation
-    print("\n===== Training and Evaluating Deep Learning Model via Cross-Validation =====")
-    deep_learning_cv_scores = cross_validation_score_deep_learning(
-        lambda: build_mlp_model(X_train_tfidf.shape[1], y_train_np.shape[1]),
-        X_train_tfidf.toarray(), y_train_np, 
-        n_splits=config.n_cv_splits, 
-        epochs=config.epochs, 
-        batch_size=config.batch_size
-    )
-    print(f"\nDeep Learning Cross-validation results:")
-    print(f"Recall: {deep_learning_cv_scores['Recall']:.4f}")
-    print(f"F1-score: {deep_learning_cv_scores['F1']:.4f}")
+    # =============================================================================
+    # MLP DEEP LEARNING MODEL (Feature-Flagged)
+    # =============================================================================
+    
+    mlp_results = []
+    if enable_mlp:
+        print("\n" + "="*80)
+        print("MLP DEEP LEARNING MODEL")
+        print("="*80)
+        
+        # Cross-Validation
+        if run_cross_validation:
+            print("\n===== Training and Evaluating MLP Model via Cross-Validation =====")
+            deep_learning_cv_scores = cross_validation_score_deep_learning(
+                lambda: build_mlp_model(X_train_tfidf.shape[1], y_train_np.shape[1]),
+                X_train_tfidf.toarray(), y_train_np, 
+                n_splits=mlp_cv_n_splits, 
+                epochs=mlp_epochs, 
+                batch_size=mlp_batch_size
+            )
+            print(f"\nMLP Cross-validation results:")
+            print(f"Recall: {deep_learning_cv_scores['Recall']:.4f}")
+            print(f"F1-score: {deep_learning_cv_scores['F1']:.4f}")
 
-    # Train Deep Learning Model on Entire Training Set
-    print("\n===== Training Deep Learning Model on Entire Training Set =====")
-    deep_learning_model = build_mlp_model(input_dim=X_train_tfidf.shape[1], output_dim=y_train_np.shape[1])
-    early_stop = EarlyStopping(monitor='val_loss', patience=config.early_stopping_patience, restore_best_weights=True)
+        # Train MLP Model on Entire Training Set
+        print("\n===== Training MLP Model on Entire Training Set =====")
+        deep_learning_model = build_mlp_model(input_dim=X_train_tfidf.shape[1], output_dim=y_train_np.shape[1])
+        early_stop = EarlyStopping(monitor='val_loss', patience=mlp_early_stopping_patience, restore_best_weights=True)
 
-    deep_learning_model.fit(
-        X_train_tfidf.toarray(),
-        y_train_np,
-        epochs=config.epochs,
-        batch_size=config.batch_size,
-        validation_split=config.validation_split,
-        callbacks=[early_stop],
-        verbose=0
-    )
+        deep_learning_model.fit(
+            X_train_tfidf.toarray(),
+            y_train_np,
+            epochs=mlp_epochs,
+            batch_size=mlp_batch_size,
+            validation_split=mlp_validation_split,
+            callbacks=[early_stop],
+            verbose=0
+        )
 
-    # Evaluate Deep Learning Model on Test Set
-    results_dl = evaluate_deep_learning_model(deep_learning_model, X_test_tfidf, y_test_np, 'MLP', label_names)
+        # Evaluate MLP Model on Test Set
+        mlp_results = evaluate_deep_learning_model(deep_learning_model, X_test_tfidf, y_test_np, 'MLP', label_names)
+    else:
+        print("\n[INFO] MLP model disabled by feature flag")
 
-    # Prepare Data for CNN
-    X_train_dl, X_test_dl, tokenizer = prepare_data_for_deep_learning(
-        X_train_df['report'], X_test_df['report'], max_words=5000, max_len=100
-    )
+    # =============================================================================
+    # CNN DEEP LEARNING MODEL (Feature-Flagged)
+    # =============================================================================
+    
+    cnn_results = []
+    if enable_cnn:
+        print("\n" + "="*80)
+        print("CNN DEEP LEARNING MODEL")
+        print("="*80)
+        
+        # Prepare Data for CNN
+        X_train_dl, X_test_dl, tokenizer = prepare_data_for_deep_learning(
+            X_train_df['report'], X_test_df['report'], max_words=cnn_max_words, max_len=cnn_max_len
+        )
 
-    # Parameters for CNN
-    vocab_size = min(len(tokenizer.word_index) + 1, 5000)
-    embedding_dim = 100
-    max_len = X_train_dl.shape[1]
-    output_dim = y_train_np.shape[1]
+        # Parameters for CNN
+        vocab_size = min(len(tokenizer.word_index) + 1, cnn_max_words)
+        embedding_dim = cnn_embedding_dim
+        max_len = X_train_dl.shape[1]
+        output_dim = y_train_np.shape[1]
 
-    # Cross-Validation for CNN Model
-    print("\n===== Training and Evaluating CNN Model via Cross-Validation =====")
-    cnn_cv_scores = cross_validation_score_deep_learning(
-        lambda: build_cnn_model(vocab_size, embedding_dim, max_len, output_dim),
-        X_train_dl, y_train_np, n_splits=10, epochs=10, batch_size=32
-    )
-    print(f"\nCNN Cross-validation results:")
-    print(f"Recall: {cnn_cv_scores['Recall']:.4f}")
-    print(f"F1-score: {cnn_cv_scores['F1']:.4f}")
+        # Cross-Validation for CNN Model
+        if run_cross_validation:
+            print("\n===== Training and Evaluating CNN Model via Cross-Validation =====")
+            cnn_cv_scores = cross_validation_score_deep_learning(
+                lambda: build_cnn_model(vocab_size, embedding_dim, max_len, output_dim),
+                X_train_dl, y_train_np, n_splits=cnn_cv_n_splits, epochs=cnn_cv_epochs, batch_size=cnn_cv_batch_size
+            )
+            print(f"\nCNN Cross-validation results:")
+            print(f"Recall: {cnn_cv_scores['Recall']:.4f}")
+            print(f"F1-score: {cnn_cv_scores['F1']:.4f}")
 
-    # Train CNN Model on Entire Training Set
-    print("\n===== Training CNN Model on Entire Training Set =====")
-    cnn_model = build_cnn_model(vocab_size, embedding_dim, max_len, output_dim)
-    early_stop = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+        # Train CNN Model on Entire Training Set
+        print("\n===== Training CNN Model on Entire Training Set =====")
+        cnn_model = build_cnn_model(vocab_size, embedding_dim, max_len, output_dim)
+        early_stop = EarlyStopping(monitor='val_loss', patience=cnn_early_stopping_patience, restore_best_weights=True)
 
-    cnn_model.fit(
-        X_train_dl, y_train_np,
-        epochs=20, batch_size=32,
-        validation_split=0.2,
-        callbacks=[early_stop],
-        verbose=1
-    )
+        cnn_model.fit(
+            X_train_dl, y_train_np,
+            epochs=cnn_epochs, batch_size=cnn_batch_size,
+            validation_split=0.2,
+            callbacks=[early_stop],
+            verbose=1
+        )
 
-    # Evaluate CNN Model on Test Set
-    results_cnn = evaluate_deep_learning_model(cnn_model, X_test_dl, y_test_np, 'CNN', label_names)
+        # Evaluate CNN Model on Test Set
+        cnn_results = evaluate_deep_learning_model(cnn_model, X_test_dl, y_test_np, 'CNN', label_names)
+    else:
+        print("\n[INFO] CNN model disabled by feature flag")
 
-    # Combine Results
-    combined_results = results_nb + results_lr + results_rf + results_dl + results_cnn
+    # =============================================================================
+    # COMBINE RESULTS AND VISUALIZATION
+    # =============================================================================
+    
+    # Combine Results from all enabled models
+    combined_results = traditional_ml_results + mlp_results + cnn_results
+    
+    if not combined_results:
+        print("\n[WARNING] No models were enabled. No results to display.")
+        return
+    
     df_results = pd.DataFrame(combined_results)
     df_results['Hamming Loss'] = pd.to_numeric(df_results['Hamming Loss'], errors='coerce')
 
-    # Visualization of Results
-    sns.set(style="whitegrid")
-    visualize_f1_scores(df_results, data_type)
+    # Visualization of Results (feature-flagged)
+    if viz_enabled and viz_f1_scores:
+        sns.set(style="whitegrid")
+        visualize_f1_scores(df_results, data_type)
 
     print("\nAll processes completed successfully.")
 
 
 if __name__ == "__main__":
-    print("\nProcessing with Unbalanced Data.")
-    main(data_type='Unbalanced')
-    print("\n---------------------------------------------------------")
-    print("\nProcessing with Balanced Data.")
-    main(data_type='Balanced')
+    # Load UI configuration to check which data types to run
+    ui_config = load_ui_config()
+    
+    run_unbalanced = get_config_value(ui_config, 'data.run_unbalanced', DEFAULT_RUN_UNBALANCED)
+    run_balanced = get_config_value(ui_config, 'data.run_balanced', DEFAULT_RUN_BALANCED)
+    
+    print("\n" + "="*80)
+    print("STARTING MULTI-LABEL CLASSIFICATION PIPELINE")
+    print("="*80)
+    print(f"Run Unbalanced Data: {run_unbalanced}")
+    print(f"Run Balanced Data: {run_balanced}")
+    print("="*80)
+    
+    if run_unbalanced:
+        print("\nProcessing with Unbalanced Data.")
+        main(data_type='Unbalanced')
+    else:
+        print("\n[INFO] Unbalanced data processing disabled by feature flag")
+    
+    if run_balanced:
+        print("\n---------------------------------------------------------")
+        print("\nProcessing with Balanced Data.")
+        main(data_type='Balanced')
+    else:
+        print("\n[INFO] Balanced data processing disabled by feature flag")
+    
+    if not run_unbalanced and not run_balanced:
+        print("\n[WARNING] Both data types are disabled. No processing performed.")
+    
+    print("\n" + "="*80)
+    print("PIPELINE COMPLETED")
+    print("="*80)
+
+
+# =============================================================================
+# LEGACY FUNCTIONS (Kept for backward compatibility)
+# =============================================================================
+def build_conditional_prob_matrix(df, labels):
     """
     Build a conditional probability matrix for label co-occurrence.
 
