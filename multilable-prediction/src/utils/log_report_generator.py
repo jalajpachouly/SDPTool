@@ -2180,7 +2180,7 @@ class LogReportGenerator:
         html += '<p style="text-align: right; margin: -10px 0 20px 0;"><a href="#toc" style="text-decoration: none; color: #2196F3; font-size: 0.9em;">↑ Back to Index</a></p>'
         
         # Comprehensive comparison for all models including Deep Learning
-        html += '<h3>9.1. Comprehensive Model Performance Comparison</h3>'
+        html += '<h3>10.1. Comprehensive Model Performance Comparison</h3>'
         html += '<p class="info-box">Comparison of all metrics across unbalanced and balanced datasets for Traditional ML and Deep Learning models.</p>'
         
         # Build comprehensive comparison table
@@ -2284,7 +2284,7 @@ class LogReportGenerator:
                 all_models[model]['hamming_reduction_pct'] = 0
         
         # Render comprehensive table
-        html += '<h4>9.1.1 Cross-Validation Metrics Comparison</h4>'
+        html += '<h4>10.1.1 Cross-Validation Metrics Comparison</h4>'
         html += '<table><thead><tr>'
         html += '<th>Model</th><th>Type</th>'
         html += '<th>Unbalanced<br>Recall</th><th>Balanced<br>Recall</th><th>Recall<br>Δ</th><th>Recall<br>% Δ</th>'
@@ -2315,7 +2315,7 @@ class LogReportGenerator:
         html += '</tbody></table>'
         
         # Test Set Hamming Loss Comparison
-        html += '<h4>9.1.2 Test Set Hamming Loss Comparison</h4>'
+        html += '<h4>10.1.2 Test Set Hamming Loss Comparison</h4>'
         html += '<p class="info-box">Lower Hamming Loss is better. Positive % Δ indicates improvement with balanced data.</p>'
         
         html += '<table><thead><tr>'
@@ -2346,7 +2346,7 @@ class LogReportGenerator:
         html += '</tbody></table>'
         
         # Summary statistics
-        html += '<h3>9.2. Overall Impact Summary</h3>'
+        html += '<h3>10.2. Overall Impact Summary</h3>'
         
         avg_f1_improvement = sum(m.get('f1_improvement_pct', 0) for m in all_models.values()) / len(all_models) if all_models else 0
         avg_recall_improvement = sum(m.get('recall_improvement_pct', 0) for m in all_models.values()) / len(all_models) if all_models else 0
