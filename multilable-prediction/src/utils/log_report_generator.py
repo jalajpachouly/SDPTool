@@ -1130,11 +1130,17 @@ class LogReportGenerator:
             if 'cv_results' in self.report_data[data_type]:
                 for model, data in self.report_data[data_type]['cv_results'].items():
                     if isinstance(data, dict) and 'mean_f1' in data:
+                        # Get hamming loss from test results
+                        hamming_loss = None
+                        if 'test_results' in self.report_data[data_type] and model in self.report_data[data_type]['test_results']:
+                            hamming_loss = self.report_data[data_type]['test_results'][model].get('hamming_loss')
+                        
                         models_list.append({
                             'name': model,
                             'type': 'Traditional ML',
                             'recall': data['mean_recall'],
-                            'f1': data['mean_f1']
+                            'f1': data['mean_f1'],
+                            'hamming_loss': hamming_loss
                         })
             
             # Deep learning models
@@ -1146,7 +1152,8 @@ class LogReportGenerator:
                             'name': dl_model,
                             'type': 'Deep Learning',
                             'recall': dl_data['cv_recall'],
-                            'f1': dl_data['cv_f1']
+                            'f1': dl_data['cv_f1'],
+                            'hamming_loss': dl_data.get('hamming_loss')
                         })
         
         # Sort by F1 score
@@ -1156,11 +1163,12 @@ class LogReportGenerator:
         # 5.1 All Models Comparison - Unbalanced
         if all_models_unbalanced:
             html += '<h3>5.1. All Models Performance - Unbalanced Data</h3>'
-            html += '<table><thead><tr><th>Rank</th><th>Model</th><th>Type</th><th>Recall</th><th>F1 Score</th><th>Performance</th></tr></thead><tbody>'
+            html += '<table><thead><tr><th>Rank</th><th>Model</th><th>Type</th><th>Recall</th><th>F1 Score</th><th>Hamming Loss</th><th>Performance</th></tr></thead><tbody>'
             
             for idx, model in enumerate(all_models_unbalanced):
                 rank_badge = '🥇' if idx == 0 else ('🥈' if idx == 1 else ('🥉' if idx == 2 else f'#{idx + 1}'))
                 badge_class = 'badge-success' if idx == 0 else ('badge-info' if idx < 3 else 'badge-primary')
+                hamming_display = f"{model['hamming_loss']:.4f}" if model.get('hamming_loss') is not None else 'N/A'
                 
                 html += f'''
                 <tr>
@@ -1169,6 +1177,7 @@ class LogReportGenerator:
                     <td><span class="badge {badge_class}">{model['type']}</span></td>
                     <td>{model['recall']:.4f}</td>
                     <td class="{('best-score' if idx == 0 else '')}">{model['f1']:.4f}</td>
+                    <td>{hamming_display}</td>
                     <td>
                         <div style="background: linear-gradient(90deg, #667eea 0%, #667eea {model['f1']*100}%, #e0e0e0 {model['f1']*100}%, #e0e0e0 100%); 
                              height: 20px; border-radius: 10px; position: relative;">
@@ -1211,11 +1220,12 @@ class LogReportGenerator:
         # 5.2 All Models Comparison - Balanced
         if all_models_balanced:
             html += '<h3>5.2. All Models Performance - Balanced Data</h3>'
-            html += '<table><thead><tr><th>Rank</th><th>Model</th><th>Type</th><th>Recall</th><th>F1 Score</th><th>Performance</th></tr></thead><tbody>'
+            html += '<table><thead><tr><th>Rank</th><th>Model</th><th>Type</th><th>Recall</th><th>F1 Score</th><th>Hamming Loss</th><th>Performance</th></tr></thead><tbody>'
             
             for idx, model in enumerate(all_models_balanced):
                 rank_badge = '🥇' if idx == 0 else ('🥈' if idx == 1 else ('🥉' if idx == 2 else f'#{idx + 1}'))
                 badge_class = 'badge-success' if idx == 0 else ('badge-info' if idx < 3 else 'badge-primary')
+                hamming_display = f"{model['hamming_loss']:.4f}" if model.get('hamming_loss') is not None else 'N/A'
                 
                 html += f'''
                 <tr>
@@ -1224,6 +1234,7 @@ class LogReportGenerator:
                     <td><span class="badge {badge_class}">{model['type']}</span></td>
                     <td>{model['recall']:.4f}</td>
                     <td class="{('best-score' if idx == 0 else '')}">{model['f1']:.4f}</td>
+                    <td>{hamming_display}</td>
                     <td>
                         <div style="background: linear-gradient(90deg, #10b981 0%, #10b981 {model['f1']*100}%, #e0e0e0 {model['f1']*100}%, #e0e0e0 100%); 
                              height: 20px; border-radius: 10px; position: relative;">
@@ -1936,8 +1947,8 @@ class LogReportGenerator:
             if 'cv_results' in self.report_data[data_type]:
                 html += f'<h3>6.{1 if data_type == "unbalanced" else 2}. {data_type.capitalize()} Data - Cross-Validation Results</h3>'
                 
-                # Summary table
-                html += '<table><thead><tr><th>Model</th><th>Mean Recall</th><th>Mean F1</th><th>Performance</th></tr></thead><tbody>'
+                # Summary table with Hamming Loss
+                html += '<table><thead><tr><th>Model</th><th>Mean Recall</th><th>Mean F1</th><th>Test Hamming Loss</th><th>Performance</th></tr></thead><tbody>'
                 
                 models_data = []
                 for model, data in self.report_data[data_type]['cv_results'].items():
@@ -1951,11 +1962,18 @@ class LogReportGenerator:
                     badge_class = 'badge-success' if idx == 0 else 'badge-info'
                     badge_text = '🏆 Best' if idx == 0 else f'#{idx + 1}'
                     
+                    # Get hamming loss from test results
+                    hamming_loss = None
+                    if 'test_results' in self.report_data[data_type] and model in self.report_data[data_type]['test_results']:
+                        hamming_loss = self.report_data[data_type]['test_results'][model].get('hamming_loss')
+                    hamming_display = f"{hamming_loss:.4f}" if hamming_loss is not None else 'N/A'
+                    
                     html += f'''
                     <tr>
                         <td><strong>{model}</strong></td>
                         <td>{data['mean_recall']:.4f}</td>
                         <td class="{('best-score' if idx == 0 else '')}">{data['mean_f1']:.4f}</td>
+                        <td>{hamming_display}</td>
                         <td><span class="badge {badge_class}">{badge_text}</span></td>
                     </tr>
                     '''
@@ -2489,8 +2507,8 @@ class LogReportGenerator:
                             overall_best_model = model
                             overall_best_dataset = data_type
                             # Get hamming loss from test results
-                            if 'test_results' in self.report_data[data_type]:
-                                overall_best_hamming = self.report_data[data_type]['test_results'].get('hamming_losses', {}).get(model)
+                            if 'test_results' in self.report_data[data_type] and model in self.report_data[data_type]['test_results']:
+                                overall_best_hamming = self.report_data[data_type]['test_results'][model].get('hamming_loss')
             
             # Check deep learning models
             if 'deep_learning' in self.report_data[data_type]:
@@ -2502,7 +2520,7 @@ class LogReportGenerator:
                             overall_best_recall = dl_data.get('cv_recall', 0)
                             overall_best_model = dl_model
                             overall_best_dataset = data_type
-                            overall_best_hamming = dl_data.get('test_hamming_loss')
+                            overall_best_hamming = dl_data.get('hamming_loss')
         
         if overall_best_model:
             # Determine model category
@@ -2515,7 +2533,7 @@ class LogReportGenerator:
                 <span style="opacity: 0.9;">({model_category} - {dataset_label} Data)</span>
             </p>
             <div style="background: rgba(255,255,255,0.15); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                <div style="display: flex; justify-content: space-around; text-align: center;">
+                <div style="display: flex; justify-content: space-around; text-align: center; flex-wrap: wrap;">
                     <div>
                         <div style="font-size: 2em; font-weight: bold;">{overall_best_f1:.4f}</div>
                         <div style="opacity: 0.9;">F1 Score</div>
