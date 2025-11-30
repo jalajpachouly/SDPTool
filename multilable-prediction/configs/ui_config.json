@@ -16,7 +16,7 @@
       "logistic_regression": {
         "use_classifier_chain": true,
         "max_iter": 10000,
-        "enabled": true
+        "enabled": false
       },
       "multinomial_nb": {
         "use_classifier_chain": false,

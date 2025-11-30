@@ -653,9 +653,12 @@ if __name__ == "__main__":
         run_unbalanced = get_config_value(ui_config, 'data.run_unbalanced', DEFAULT_RUN_UNBALANCED)
         run_balanced = get_config_value(ui_config, 'data.run_balanced', DEFAULT_RUN_BALANCED)
         
+        training_start_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
         print("\n" + "="*80)
         print("STARTING MULTI-LABEL CLASSIFICATION PIPELINE")
         print("="*80)
+        print(f"Training Started: {training_start_time}")
         print(f"Run Unbalanced Data: {run_unbalanced}")
         print(f"Run Balanced Data: {run_balanced}")
         print("="*80)

@@ -52,8 +52,11 @@ class LogReportGenerator:
         """Extract metadata from log file."""
         lines = self.log_content.split('\n')
         
-        # Extract timestamp
-        timestamp_match = re.search(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})', self.log_content)
+        # Extract timestamp - prioritize "Training Started:" format
+        timestamp_match = re.search(r'Training Started:\s*(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})', self.log_content)
+        if not timestamp_match:
+            # Fallback to any timestamp in the log
+            timestamp_match = re.search(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})', self.log_content)
         if timestamp_match:
             self.report_data['metadata']['timestamp'] = timestamp_match.group(1)
         
