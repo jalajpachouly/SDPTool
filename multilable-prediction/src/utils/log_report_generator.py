@@ -1948,7 +1948,7 @@ class LogReportGenerator:
                 html += f'<h3>6.{1 if data_type == "unbalanced" else 2}. {data_type.capitalize()} Data - Cross-Validation Results</h3>'
                 
                 # Summary table with Hamming Loss
-                html += '<table><thead><tr><th>Model</th><th>Mean Recall</th><th>Mean F1</th><th>Test Hamming Loss</th><th>Performance</th></tr></thead><tbody>'
+                html += '<table><thead><tr><th>Model</th><th>Mean Recall</th><th>Mean F1</th><th>Hamming Loss</th><th>Performance</th></tr></thead><tbody>'
                 
                 models_data = []
                 for model, data in self.report_data[data_type]['cv_results'].items():
@@ -2080,12 +2080,15 @@ class LogReportGenerator:
                 for model_name in ['MLP', 'CNN']:
                     if model_name in dl_data:
                         model_data = dl_data[model_name]
+                        hamming_loss = model_data.get('hamming_loss')
+                        hamming_display = f"<div class='metric-label'>Hamming Loss: {hamming_loss:.4f}</div>" if hamming_loss is not None else ""
                         html += f'''
                         <div class="metric-card">
                             <h4>{model_name} Cross-Validation</h4>
                             <div class="metric-value">{model_data['cv_f1']:.4f}</div>
                             <div class="metric-label">Mean F1 Score</div>
                             <div class="metric-label">Recall: {model_data['cv_recall']:.4f}</div>
+                            {hamming_display}
                         </div>
                         '''
                 
