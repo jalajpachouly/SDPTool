@@ -2488,7 +2488,7 @@ class LogReportGenerator:
             '''
         
         # Add Best Model Recommendation Section
-        html += '<h3>10.1. Best Model Recommendation</h3>'
+        html += '<h3>11.1. Best Model Recommendation</h3>'
         html += '<div class="info-box" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">'
         html += '<h4 style="color: white; margin-bottom: 15px;">🎯 Recommended Model for Production</h4>'
         

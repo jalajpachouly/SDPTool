@@ -1,123 +1,32 @@
 @startuml SDPTool Use Case Diagram
-left to right direction
 skinparam packageStyle rectangle
+left to right direction
 
 actor "Software Engineer" as SE
-
-rectangle "SDPTool System" {
-  
-  package "Data Acquisition" {
-    usecase "Configure GitHub Access" as UC1
-    usecase "Fetch Repository Issues" as UC2
-    usecase "Browse Database" as UC3
-  }
-  
-  package "Data Preprocessing" {
-    usecase "Remove Stop Words" as UC4
-    usecase "Clean & Validate Data" as UC5
-    usecase "Enrich & Label Data" as UC6
-    usecase "Execute Preprocessing Pipeline" as UC7
-  }
-  
-  package "Feature Engineering" {
-    usecase "Configure Dataset Split" as UC8
-    usecase "Enable Data Balancing" as UC9
-    usecase "Select Feature Method" as UC10
-    usecase "Configure TF-IDF Parameters" as UC11
-  }
-  
-  package "Model Training" {
-    usecase "Select Problem Type\n(Multi-label/Multi-class)" as UC12
-    usecase "Select ML Algorithms" as UC13
-    usecase "Configure Hyperparameters" as UC14
-    usecase "Enable Cross-Validation" as UC15
-    usecase "Enable Error Analysis" as UC16
-    usecase "Run Training Pipeline" as UC17
-  }
-  
-  package "Visualization Configuration" {
-    usecase "Configure Chart Types" as UC18
-    usecase "Select Visualization Parameters" as UC19
-  }
-  
-  package "Results Analysis" {
-    usecase "View Training Progress" as UC20
-    usecase "Browse Run History" as UC21
-    usecase "Open HTML Reports" as UC22
-    usecase "View Generated Charts" as UC23
-    usecase "Compare Model Performance" as UC24
-    usecase "Delete Old Runs" as UC25
-  }
+rectangle "SDPTool" {
+  usecase "Pick Data Source" as UC_Data
+  usecase "Tune Experiment" as UC_Configure
+  usecase "Run & View Results" as UC_Run
+  usecase "Monitor Progress" as UC_Monitor
+  usecase "Manage Reports" as UC_Report
 }
 
-rectangle "GitHub API" as GH <<external system>>
-rectangle "Python ML Engine" as PY <<external system>>
-database "Database" as DB
+rectangle "GitHub API" as GH <<external>>
+rectangle "Python ML Engine" as PY <<external>>
 
-' Software Engineer relationships
-SE --> UC1
-SE --> UC2
-SE --> UC3
-SE --> UC7
-SE --> UC8
-SE --> UC9
-SE --> UC10
-SE --> UC11
-SE --> UC12
-SE --> UC13
-SE --> UC14
-SE --> UC15
-SE --> UC16
-SE --> UC17
-SE --> UC18
-SE --> UC19
-SE --> UC20
-SE --> UC21
-SE --> UC22
-SE --> UC23
-SE --> UC24
-SE --> UC25
+SE --> UC_Data : select project
+SE --> UC_Configure : set options
+SE --> UC_Run : launch & review
+SE --> UC_Monitor : watch status
+SE --> UC_Report : open latest
 
-' Include relationships
-UC2 ..> UC1 : <<include>>
-UC7 ..> UC4 : <<include>>
-UC7 ..> UC5 : <<include>>
-UC7 ..> UC6 : <<include>>
-UC17 ..> UC12 : <<include>>
-UC17 ..> UC8 : <<include>>
-UC22 ..> UC24 : <<include>>
+UC_Data ..> GH : fetch issues
+UC_Run ..> PY : execute models\nproduce reports
+UC_Report ..> PY : retrieve report
 
-' Extend relationships
-UC15 ..> UC17 : <<extend>>
-UC16 ..> UC17 : <<extend>>
-UC9 ..> UC8 : <<extend>>
-UC10 ..> UC11 : <<extend>>
-
-' External system interactions
-UC2 --> GH : fetch data
-UC3 --> DB : query
-UC5 --> DB : validate
-UC6 --> DB : update
-UC17 --> PY : execute training
-UC20 --> PY : monitor progress
-UC22 --> PY : generate report
-
-note right of UC17
-  Supports multiple algorithms:
-  - MultinomialNB
-  - LogisticRegression
-  - RandomForest
-  - MLP (Deep Learning)
-  - CNN (Deep Learning)
-end note
-
-note bottom of UC22
-  Reports include:
-  - Model performance metrics
-  - Statistical significance tests
-  - Error analysis
-  - Feature importance
-  - Hamming Loss comparison
-end note
+UC_Data --> UC_Configure
+UC_Configure --> UC_Run
+UC_Run --> UC_Monitor
+UC_Run --> UC_Report
 
 @enduml
