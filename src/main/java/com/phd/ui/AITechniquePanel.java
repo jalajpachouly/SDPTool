@@ -726,51 +726,7 @@ public class AITechniquePanel extends JPanel {
                 }
                 exitCode = process.waitFor();
 
-                if (exitCode == 0 && errorMessage == null && !isMultiClassSelected()) {
-                    String reportOutput = generateLogReport(scriptPath);
-                    if (reportOutput != null && !reportOutput.isBlank()) {
-                        outputBuilder.append(reportOutput);
-                    }
-                }
                 return outputBuilder.toString();
-            }
-
-            private String generateLogReport(Path scriptPath) throws IOException, InterruptedException {
-                Path generatorPath = scriptPath.getParent().resolve("utils").resolve("log_report_generator.py").toAbsolutePath();
-                Path logPath = Paths.get(MULTILABEL_LOG_PATH).toAbsolutePath();
-                Path reportPath = Paths.get(MULTILABEL_REPORT_PATH).toAbsolutePath();
-
-                if (!Files.exists(generatorPath)) {
-                    throw new IOException("Unable to locate log_report_generator.py at " + generatorPath);
-                }
-                if (!Files.exists(logPath)) {
-                    throw new IOException("Log file not found at " + logPath);
-                }
-                Files.createDirectories(reportPath.getParent());
-
-                List<String> reportCommand = new ArrayList<>();
-                reportCommand.add("python");
-                reportCommand.add(generatorPath.toString());
-                reportCommand.add(logPath.toString());
-                reportCommand.add(reportPath.toString());
-
-                ProcessBuilder reportBuilder = new ProcessBuilder(reportCommand);
-                reportBuilder.directory(generatorPath.getParent().toFile());
-                reportBuilder.redirectErrorStream(true);
-
-                Process reportProcess = reportBuilder.start();
-                StringBuilder reportOutput = new StringBuilder();
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(reportProcess.getInputStream()))) {
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        reportOutput.append(line).append(System.lineSeparator());
-                    }
-                }
-                int reportExit = reportProcess.waitFor();
-                if (reportExit != 0) {
-                    throw new IOException("Report generator exited with code " + reportExit + ". Output: " + reportOutput);
-                }
-                return reportOutput.toString();
             }
 
             @Override

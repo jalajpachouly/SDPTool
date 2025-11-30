@@ -2268,8 +2268,8 @@ if __name__ == "__main__":
         output = sys.argv[2] if len(sys.argv) > 2 else None
         
         report_path = generate_log_report(log_path, output)
-        print(f"✅ HTML report generated successfully!")
-        print(f"📄 Report location: {report_path}")
+        print("HTML report generated successfully!")
+        print(f"Report location: {report_path}")
     else:
         print("Usage: python log_report_generator.py <log_file_path> [output_path]")
         print("Example: python log_report_generator.py output/log.txt output/report.html")

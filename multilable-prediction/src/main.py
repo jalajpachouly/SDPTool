@@ -1245,7 +1245,7 @@ def main(data_type='Unbalanced'):
     # ----------------------------
     # Load Data
     # ----------------------------
-    csv_path = "dataset.csv"
+    csv_path = str(DATASET_PATH)
     try:
         if data_type == 'Balanced':
             X_train_df, X_test_df, y_train_df, y_test_df = load_data_balanced(csv_path)
