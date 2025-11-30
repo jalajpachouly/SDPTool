@@ -16,6 +16,15 @@ import pandas as pd
 import numpy as np
 import nltk
 import seaborn as sns
+import matplotlib.pyplot as plt
+from wordcloud import WordCloud
+from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit, MultilabelStratifiedKFold
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_selection import chi2
+from sklearn.metrics import recall_score, f1_score, hamming_loss
+from scipy.optimize import nnls
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 # Sklearn imports
 from sklearn.multioutput import ClassifierChain
@@ -24,6 +33,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 
 # Keras imports
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout, Embedding, Conv1D, GlobalMaxPooling1D
 from tensorflow.keras.callbacks import EarlyStopping
 
 # Local imports
@@ -459,38 +470,95 @@ def main(data_type='Unbalanced'):
 
 
 if __name__ == "__main__":
-    # Load UI configuration to check which data types to run
+    import sys
+    from pathlib import Path
+    from datetime import datetime
+    
+    # Load UI configuration first to get experiment_name
     ui_config = load_ui_config()
+    experiment_name = ui_config.get('experiment_name', 'default_run')
     
-    run_unbalanced = get_config_value(ui_config, 'data.run_unbalanced', DEFAULT_RUN_UNBALANCED)
-    run_balanced = get_config_value(ui_config, 'data.run_balanced', DEFAULT_RUN_BALANCED)
+    # Setup output directory with new structure: output/reports/<Run_ID>
+    base_output_dir = Path(__file__).parent.parent / 'output' / 'reports' / experiment_name
+    base_output_dir.mkdir(parents=True, exist_ok=True)
+    log_path = base_output_dir / 'log.txt'
     
-    print("\n" + "="*80)
-    print("STARTING MULTI-LABEL CLASSIFICATION PIPELINE")
-    print("="*80)
-    print(f"Run Unbalanced Data: {run_unbalanced}")
-    print(f"Run Balanced Data: {run_balanced}")
-    print("="*80)
+    print(f"[INFO] Run ID: {experiment_name}")
+    print(f"[INFO] Output directory: {base_output_dir.absolute()}")
     
-    if run_unbalanced:
-        print("\nProcessing with Unbalanced Data.")
-        main(data_type='Unbalanced')
-    else:
-        print("\n[INFO] Unbalanced data processing disabled by feature flag")
+    # Redirect stdout to both console and log file
+    class TeeOutput:
+        def __init__(self, *files):
+            self.files = files
+        def write(self, text):
+            for f in self.files:
+                f.write(text)
+                f.flush()
+        def flush(self):
+            for f in self.files:
+                f.flush()
     
-    if run_balanced:
-        print("\n---------------------------------------------------------")
-        print("\nProcessing with Balanced Data.")
-        main(data_type='Balanced')
-    else:
-        print("\n[INFO] Balanced data processing disabled by feature flag")
+    log_file = open(log_path, 'w', encoding='utf-8')
+    original_stdout = sys.stdout
+    sys.stdout = TeeOutput(original_stdout, log_file)
     
-    if not run_unbalanced and not run_balanced:
-        print("\n[WARNING] Both data types are disabled. No processing performed.")
+    try:
+        # Check which data types to run
+        
+        run_unbalanced = get_config_value(ui_config, 'data.run_unbalanced', DEFAULT_RUN_UNBALANCED)
+        run_balanced = get_config_value(ui_config, 'data.run_balanced', DEFAULT_RUN_BALANCED)
+        
+        print("\n" + "="*80)
+        print("STARTING MULTI-LABEL CLASSIFICATION PIPELINE")
+        print("="*80)
+        print(f"Run Unbalanced Data: {run_unbalanced}")
+        print(f"Run Balanced Data: {run_balanced}")
+        print("="*80)
+        
+        if run_unbalanced:
+            print("\nProcessing with Unbalanced Data.")
+            main(data_type='Unbalanced')
+        else:
+            print("\n[INFO] Unbalanced data processing disabled by feature flag")
+        
+        if run_balanced:
+            print("\n---------------------------------------------------------")
+            print("\nProcessing with Balanced Data.")
+            main(data_type='Balanced')
+        else:
+            print("\n[INFO] Balanced data processing disabled by feature flag")
+        
+        if not run_unbalanced and not run_balanced:
+            print("\n[WARNING] Both data types are disabled. No processing performed.")
+        
+        print("\n" + "="*80)
+        print("PIPELINE COMPLETED")
+        print("="*80)
+    finally:
+        # Restore stdout and close log file
+        sys.stdout = original_stdout
+        log_file.close()
     
-    print("\n" + "="*80)
-    print("PIPELINE COMPLETED")
-    print("="*80)
+    # Generate HTML report from log
+    try:
+        from utils.log_report_generator import generate_log_report
+        
+        report_path = base_output_dir / 'report.html'
+        
+        if log_path.exists():
+            generate_log_report(str(log_path), str(report_path))
+            print("HTML report generated successfully!")
+            print(f"Report location: {report_path.absolute()}")
+            print(f"Run ID: {experiment_name}")
+        else:
+            print(f"[WARNING] Log file not found at {log_path}")
+    except ZeroDivisionError as e:
+        print(f"[WARNING] Could not generate HTML report: Insufficient data for report generation.")
+        print(f"[INFO] Enable Cross-Validation in ui_config.json to generate comprehensive reports.")
+    except Exception as e:
+        print(f"[WARNING] Could not generate HTML report: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 # =============================================================================
@@ -1441,14 +1509,3 @@ def main(data_type='Unbalanced'):
     visualize_nb_metrics(df_results, data_type)
 
     print("\nAll visualization processes completed successfully. Plots have been saved.")
-
-# ====================================
-# Execute Scripts
-# ====================================
-
-if __name__ == "__main__":
-    print("\nProcessing with Unbalanced Data.")
-    main(data_type='Unbalanced')
-    print("\n---------------------------------------------------------")
-    print("\nProcessing with Balanced Data.")
-    main(data_type='Balanced')

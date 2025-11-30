@@ -23,8 +23,10 @@ import java.util.List;
 public class AITechniquePanel extends JPanel {
     public static final String DEFAULT_MULTILABEL_SCRIPT_PATH = "multilable-prediction/src/main.py";
     public static final String DEFAULT_MULTICLASS_SCRIPT_PATH = "software-change-type-prediction-main/src/configurable_main.py";
-    public static final String MULTILABEL_LOG_PATH = "multilable-prediction/src/output/log.txt";
-    public static final String MULTILABEL_REPORT_PATH = "multilable-prediction/src/output/report.html";
+    // Note: Actual paths will be determined at runtime based on experiment_name from ui_config.json
+    public static final String MULTILABEL_OUTPUT_BASE = "multilable-prediction/output/reports";
+    public static final String MULTILABEL_LOG_FILENAME = "log.txt";
+    public static final String MULTILABEL_REPORT_FILENAME = "report.html";
     private static final String PROBLEM_MULTI_LABEL = "multi_label";
     private static final String PROBLEM_MULTI_CLASS = "multi_class";
 
@@ -48,19 +50,19 @@ public class AITechniquePanel extends JPanel {
     // Multi-label controls
     private JCheckBox mlRandomForestEnabledBox;
     private JCheckBox mlRandomForestChainBox;
-    private JCheckBox mlRandomForestCvBox;
     private JSpinner mlRandomForestEstimatorsSpinner;
     private JSpinner mlRandomForestRandomStateSpinner;
     private JSpinner mlCvSplitsSpinner;
+    
+    // Global cross-validation control
+    private JCheckBox mlGlobalCvBox;
 
     private JCheckBox mlLogisticEnabledBox;
     private JCheckBox mlLogisticChainBox;
-    private JCheckBox mlLogisticCvBox;
     private JSpinner mlLogisticMaxIterSpinner;
 
     private JCheckBox mlMultinomialEnabledBox;
     private JCheckBox mlMultinomialChainBox;
-    private JCheckBox mlMultinomialCvBox;
     private JTextField mlExperimentNameField;
     private JCheckBox mlRunUnbalancedBox;
     private JCheckBox mlRunBalancedBox;
@@ -78,8 +80,6 @@ public class AITechniquePanel extends JPanel {
     private JCheckBox mlDeepLearningEnabledBox;
 
     private JCheckBox mlMlpEnabledBox;
-    private JCheckBox mlMlpCvBox;
-    private JSpinner mlMlpCvSplitsSpinner;
     private JSpinner mlMlpCvEpochsSpinner;
     private JSpinner mlMlpCvBatchSpinner;
     private JSpinner mlMlpEpochsSpinner;
@@ -92,8 +92,6 @@ public class AITechniquePanel extends JPanel {
     private JSpinner mlMlpLayer2DropoutSpinner;
 
     private JCheckBox mlCnnEnabledBox;
-    private JCheckBox mlCnnCvBox;
-    private JSpinner mlCnnCvSplitsSpinner;
     private JSpinner mlCnnCvEpochsSpinner;
     private JSpinner mlCnnCvBatchSpinner;
     private JSpinner mlCnnEpochsSpinner;
@@ -258,6 +256,13 @@ public class AITechniquePanel extends JPanel {
         int row = 0;
         mlExperimentNameField = new JTextField(20);
         addRow(panel, row++, "Experiment Name", mlExperimentNameField);
+        
+        mlGlobalCvBox = new JCheckBox("Enable Cross-Validation (Global)");
+        addFullRow(panel, row++, mlGlobalCvBox);
+        
+        mlCvSplitsSpinner = createIntSpinner(10, 2, 20, 1);
+        addRow(panel, row++, "CV Splits", mlCvSplitsSpinner);
+        
         return panel;
     }
 
@@ -302,14 +307,10 @@ public class AITechniquePanel extends JPanel {
         addFullRow(panel, row++, mlRandomForestEnabledBox);
         mlRandomForestChainBox = new JCheckBox("Use classifier chain");
         addFullRow(panel, row++, mlRandomForestChainBox);
-        mlRandomForestCvBox = new JCheckBox("Run cross-validation");
-        addFullRow(panel, row++, mlRandomForestCvBox);
         mlRandomForestEstimatorsSpinner = createIntSpinner(100, 10, 1000, 10);
         addRow(panel, row++, "Trees", mlRandomForestEstimatorsSpinner);
         mlRandomForestRandomStateSpinner = createIntSpinner(42, 0, 10000, 1);
         addRow(panel, row++, "Random state", mlRandomForestRandomStateSpinner);
-        mlCvSplitsSpinner = createIntSpinner(10, 2, 20, 1);
-        addRow(panel, row++, "CV folds (traditional ML)", mlCvSplitsSpinner);
         return panel;
     }
 
@@ -320,8 +321,6 @@ public class AITechniquePanel extends JPanel {
         addFullRow(panel, row++, mlLogisticEnabledBox);
         mlLogisticChainBox = new JCheckBox("Use classifier chain");
         addFullRow(panel, row++, mlLogisticChainBox);
-        mlLogisticCvBox = new JCheckBox("Run cross-validation");
-        addFullRow(panel, row++, mlLogisticCvBox);
         mlLogisticMaxIterSpinner = createIntSpinner(10000, 100, 20000, 100);
         addRow(panel, row++, "Max iterations", mlLogisticMaxIterSpinner);
         return panel;
@@ -334,8 +333,6 @@ public class AITechniquePanel extends JPanel {
         addFullRow(panel, row++, mlMultinomialEnabledBox);
         mlMultinomialChainBox = new JCheckBox("Use classifier chain");
         addFullRow(panel, row++, mlMultinomialChainBox);
-        mlMultinomialCvBox = new JCheckBox("Run cross-validation");
-        addFullRow(panel, row++, mlMultinomialCvBox);
         return panel;
     }
 
@@ -355,10 +352,6 @@ public class AITechniquePanel extends JPanel {
         int row = 0;
         mlMlpEnabledBox = new JCheckBox("Enable MLP");
         addFullRow(panel, row++, mlMlpEnabledBox);
-        mlMlpCvBox = new JCheckBox("Run cross-validation");
-        addFullRow(panel, row++, mlMlpCvBox);
-        mlMlpCvSplitsSpinner = createIntSpinner(10, 2, 20, 1);
-        addRow(panel, row++, "CV folds", mlMlpCvSplitsSpinner);
         mlMlpCvEpochsSpinner = createIntSpinner(100, 1, 1000, 5);
         addRow(panel, row++, "CV epochs", mlMlpCvEpochsSpinner);
         mlMlpCvBatchSpinner = createIntSpinner(16, 1, 256, 1);
@@ -387,10 +380,6 @@ public class AITechniquePanel extends JPanel {
         int row = 0;
         mlCnnEnabledBox = new JCheckBox("Enable CNN");
         addFullRow(panel, row++, mlCnnEnabledBox);
-        mlCnnCvBox = new JCheckBox("Run cross-validation");
-        addFullRow(panel, row++, mlCnnCvBox);
-        mlCnnCvSplitsSpinner = createIntSpinner(10, 2, 20, 1);
-        addRow(panel, row++, "CV folds", mlCnnCvSplitsSpinner);
         mlCnnCvEpochsSpinner = createIntSpinner(10, 1, 500, 1);
         addRow(panel, row++, "CV epochs", mlCnnCvEpochsSpinner);
         mlCnnCvBatchSpinner = createIntSpinner(32, 1, 512, 1);
@@ -914,10 +903,13 @@ public class AITechniquePanel extends JPanel {
         }
         JSONObject multiLabelConfig = ConfigManager.getMultiLabelConfig();
         JSONObject traditional = ensureObject(multiLabelModels, "traditional_ml");
-        JSONObject tradCvByModel = ensureObject(traditional, "run_cross_validation_by_model");
         JSONObject data = ensureObject(multiLabelConfig, "data");
         JSONObject featureEng = ensureObject(multiLabelConfig, "feature_engineering");
         JSONObject tfidf = ensureObject(featureEng, "tfidf");
+
+        // Load global cross-validation setting
+        mlGlobalCvBox.setSelected(multiLabelConfig.optBoolean("run_cross_validation", true));
+        mlCvSplitsSpinner.setValue(traditional.optInt("cv_n_splits", 10));
 
         mlExperimentNameField.setText(multiLabelConfig.optString("experiment_name", "Multi-Label Experiment"));
         mlRunUnbalancedBox.setSelected(data.optBoolean("run_unbalanced", true));
@@ -939,29 +931,23 @@ public class AITechniquePanel extends JPanel {
         JSONObject randomForest = ensureObject(traditional, "random_forest");
         mlRandomForestEnabledBox.setSelected(randomForest.optBoolean("enabled", true));
         mlRandomForestChainBox.setSelected(randomForest.optBoolean("use_classifier_chain", true));
-        mlRandomForestCvBox.setSelected(tradCvByModel.optBoolean("random_forest", false));
         mlRandomForestEstimatorsSpinner.setValue(randomForest.optInt("n_estimators", 100));
         mlRandomForestRandomStateSpinner.setValue(randomForest.optInt("random_state", 42));
-        mlCvSplitsSpinner.setValue(traditional.optInt("cv_n_splits", 10));
 
         JSONObject logistic = ensureObject(traditional, "logistic_regression");
         mlLogisticEnabledBox.setSelected(logistic.optBoolean("enabled", true));
         mlLogisticChainBox.setSelected(logistic.optBoolean("use_classifier_chain", true));
-        mlLogisticCvBox.setSelected(tradCvByModel.optBoolean("logistic_regression", false));
         mlLogisticMaxIterSpinner.setValue(logistic.optInt("max_iter", 1000));
 
         JSONObject multinomial = ensureObject(traditional, "multinomial_nb");
         mlMultinomialEnabledBox.setSelected(multinomial.optBoolean("enabled", true));
         mlMultinomialChainBox.setSelected(multinomial.optBoolean("use_classifier_chain", true));
-        mlMultinomialCvBox.setSelected(tradCvByModel.optBoolean("multinomial_nb", false));
 
         JSONObject deepLearning = ensureObject(multiLabelModels, "deep_learning");
         mlDeepLearningEnabledBox.setSelected(deepLearning.optBoolean("enabled", true));
 
         JSONObject mlp = ensureObject(deepLearning, "mlp");
         mlMlpEnabledBox.setSelected(mlp.optBoolean("enabled", true));
-        mlMlpCvBox.setSelected(mlp.optBoolean("run_cross_validation", true));
-        mlMlpCvSplitsSpinner.setValue(mlp.optInt("cv_n_splits", 5));
         mlMlpCvEpochsSpinner.setValue(mlp.optInt("cv_epochs", 50));
         mlMlpCvBatchSpinner.setValue(mlp.optInt("cv_batch_size", 16));
         mlMlpEpochsSpinner.setValue(mlp.optInt("epochs", 50));
@@ -976,8 +962,6 @@ public class AITechniquePanel extends JPanel {
 
         JSONObject cnn = ensureObject(deepLearning, "cnn");
         mlCnnEnabledBox.setSelected(cnn.optBoolean("enabled", true));
-        mlCnnCvBox.setSelected(cnn.optBoolean("run_cross_validation", true));
-        mlCnnCvSplitsSpinner.setValue(cnn.optInt("cv_n_splits", 5));
         mlCnnCvEpochsSpinner.setValue(cnn.optInt("cv_epochs", 10));
         mlCnnCvBatchSpinner.setValue(cnn.optInt("cv_batch_size", 32));
         mlCnnEpochsSpinner.setValue(cnn.optInt("epochs", 20));
@@ -1105,20 +1089,20 @@ public class AITechniquePanel extends JPanel {
 
         boolean anyTraditionalEnabled = rfEnabled || logisticEnabled || nbEnabled;
         traditional.put("enabled", anyTraditionalEnabled);
-        traditional.put("run_cross_validation", false); // legacy, keep default false
+        
+        // Use global cross-validation setting
+        boolean globalCv = mlGlobalCvBox.isSelected();
+        multiLabelConfig.put("run_cross_validation", globalCv);
+        traditional.put("run_cross_validation", globalCv);
         traditional.put("cv_n_splits", getInt(mlCvSplitsSpinner));
-        JSONObject tradCvByModel = ensureObject(traditional, "run_cross_validation_by_model");
-        tradCvByModel.put("random_forest", mlRandomForestCvBox.isSelected());
-        tradCvByModel.put("logistic_regression", mlLogisticCvBox.isSelected());
-        tradCvByModel.put("multinomial_nb", mlMultinomialCvBox.isSelected());
 
         JSONObject deepLearning = ensureObject(multiLabelModels, "deep_learning");
         deepLearning.put("enabled", mlDeepLearningEnabledBox.isSelected());
 
         JSONObject mlp = ensureObject(deepLearning, "mlp");
         mlp.put("enabled", mlMlpEnabledBox.isSelected());
-        mlp.put("run_cross_validation", mlMlpCvBox.isSelected());
-        mlp.put("cv_n_splits", getInt(mlMlpCvSplitsSpinner));
+        mlp.put("run_cross_validation", globalCv);
+        mlp.put("cv_n_splits", getInt(mlCvSplitsSpinner));
         mlp.put("cv_epochs", getInt(mlMlpCvEpochsSpinner));
         mlp.put("cv_batch_size", getInt(mlMlpCvBatchSpinner));
         mlp.put("epochs", getInt(mlMlpEpochsSpinner));
@@ -1133,8 +1117,8 @@ public class AITechniquePanel extends JPanel {
 
         JSONObject cnn = ensureObject(deepLearning, "cnn");
         cnn.put("enabled", mlCnnEnabledBox.isSelected());
-        cnn.put("run_cross_validation", mlCnnCvBox.isSelected());
-        cnn.put("cv_n_splits", getInt(mlCnnCvSplitsSpinner));
+        cnn.put("run_cross_validation", globalCv);
+        cnn.put("cv_n_splits", getInt(mlCvSplitsSpinner));
         cnn.put("cv_epochs", getInt(mlCnnCvEpochsSpinner));
         cnn.put("cv_batch_size", getInt(mlCnnCvBatchSpinner));
         cnn.put("epochs", getInt(mlCnnEpochsSpinner));

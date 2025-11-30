@@ -14,20 +14,20 @@
         "enabled": true
       },
       "logistic_regression": {
-        "use_classifier_chain": true,
+        "use_classifier_chain": false,
         "max_iter": 10000,
-        "enabled": true
+        "enabled": false
       },
       "multinomial_nb": {
-        "use_classifier_chain": true,
-        "enabled": true
+        "use_classifier_chain": false,
+        "enabled": false
       },
       "cv_n_splits": 10,
-      "run_cross_validation": false,
+      "run_cross_validation": true,
       "run_cross_validation_by_model": {
         "random_forest": true,
-        "logistic_regression": true,
-        "multinomial_nb": true
+        "logistic_regression": false,
+        "multinomial_nb": false
       },
       "enabled": true
     },
@@ -54,7 +54,7 @@
         "run_cross_validation": true,
         "validation_split": 0.2,
         "epochs": 100,
-        "enabled": true,
+        "enabled": false,
         "early_stopping_patience": 5,
         "cv_epochs": 100,
         "architecture": {
@@ -71,7 +71,7 @@
         "embedding_dim": 100,
         "cv_n_splits": 10,
         "run_cross_validation": true,
-        "enabled": true,
+        "enabled": false,
         "early_stopping_patience": 10,
         "max_len": 100,
         "max_words": 5000,
@@ -82,7 +82,7 @@
         "conv_kernel_size": 5,
         "cv_epochs": 10
       },
-      "enabled": true
+      "enabled": false
     }
   },
   "experiment_name": "T8",
@@ -124,5 +124,6 @@
     "random_state": 42,
     "sample_random_state": 42
   },
-  "problem_type": "multi_label"
+  "problem_type": "multi_label",
+  "run_cross_validation": true
 }

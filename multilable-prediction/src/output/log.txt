@@ -1,15 +1,29 @@
-2025-11-29 18:11:23.727387: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:467] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
-WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-E0000 00:00:1764439883.747372   14387 cuda_dnn.cc:8579] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
-E0000 00:00:1764439883.753435   14387 cuda_blas.cc:1407] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
-W0000 00:00:1764439883.769612   14387 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
-W0000 00:00:1764439883.769640   14387 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
-W0000 00:00:1764439883.769644   14387 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
-W0000 00:00:1764439883.769647   14387 computation_placer.cc:177] computation placer already registered. Please check linkage and avoid linking the same target more than once.
-2025-11-29 18:11:23.774514: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+[OK] Loaded UI configuration from: configs/ui_config.json
+
+================================================================================
+STARTING MULTI-LABEL CLASSIFICATION PIPELINE
+================================================================================
+Run Unbalanced Data: True
+Run Balanced Data: True
+================================================================================
 
 Processing with Unbalanced Data.
+[OK] Loaded UI configuration from: configs/ui_config.json
+
+================================================================================
+CONFIGURATION FOR UNBALANCED DATA
+================================================================================
+
+[MODELS ENABLED]
+  MultinomialNB: False
+  LogisticRegression: False
+  RandomForest: True
+  MLP: False
+  CNN: False
+  Cross-Validation: True
+  Visualizations: True
+================================================================================
+
 Label counts in y_train:
 type_blocker          107
 type_bug              540
@@ -25,351 +39,126 @@ type_enhancement      136
 dtype: int64
 Description length distribution plot saved at ..
 Class distribution plot saved at ..
-Label correlation matrix plot saved at ..
-Word cloud for 'type_blocker' saved as './wordcloud_type_blocker.png'.
-Word cloud for 'type_bug' saved as './wordcloud_type_bug.png'.
-Word cloud for 'type_documentation' saved as './wordcloud_type_documentation.png'.
-Word cloud for 'type_enhancement' saved as './wordcloud_type_enhancement.png'.
-
-Total unique words collected from word clouds: 93
+[INFO] Wordcloud vocabulary requested but wordclouds disabled, using None
 
 Selected top 50 features based on Chi-Square scores:
-['issue SPR' 'spring io' 'Java' 'Spring' 'JIRA issue' 'Spring Data'
- 'Juergen Hoeller' 'document discusses' 'io browse' 'Spring JIRA'
- 'affects version' 'Spring Integration' 'Spring Security' 'pull request'
- 'Key Points' 'Spring Boot' 'https jira' 'Data JPA' 'Javadoc' 'x']
-Top 20 features plotted at ..
+['boot' 'upgrade' 'document' 'security' 'release' 'bom' 'upgrading'
+ 'batch' 'discusses' 'geode' 'jar' 'webflux' 'documentation' 'bug'
+ 'actuator' 'windows' 'workaround' 'application' 'snapshot' 'introduced']
+[INFO] RandomForest enabled (n_estimators=100)
 
-===== Cross-Validating MultinomialNB =====
-Fold 1: Recall = 0.6414, F1-Score = 0.6323
-Fold 2: Recall = 0.6099, F1-Score = 0.5886
-Fold 3: Recall = 0.6113, F1-Score = 0.5831
-Fold 4: Recall = 0.6042, F1-Score = 0.5758
-Fold 5: Recall = 0.6158, F1-Score = 0.5897
-Fold 6: Recall = 0.5911, F1-Score = 0.5753
-Fold 7: Recall = 0.5882, F1-Score = 0.5656
-Fold 8: Recall = 0.6977, F1-Score = 0.7093
-Fold 9: Recall = 0.6451, F1-Score = 0.6528
-Fold 10: Recall = 0.6246, F1-Score = 0.6230
-
-===== Cross-Validating LogisticRegression =====
-Fold 1: Recall = 0.7486, F1-Score = 0.7631
-Fold 2: Recall = 0.6686, F1-Score = 0.6888
-Fold 3: Recall = 0.6600, F1-Score = 0.6659
-Fold 4: Recall = 0.6725, F1-Score = 0.6729
-Fold 5: Recall = 0.6929, F1-Score = 0.7057
-Fold 6: Recall = 0.7153, F1-Score = 0.7457
-Fold 7: Recall = 0.6276, F1-Score = 0.6545
-Fold 8: Recall = 0.7885, F1-Score = 0.8178
-Fold 9: Recall = 0.6997, F1-Score = 0.7137
-Fold 10: Recall = 0.7216, F1-Score = 0.7267
+================================================================================
+CROSS-VALIDATION FOR TRADITIONAL ML MODELS
+================================================================================
 
 ===== Cross-Validating RandomForest =====
-Fold 1: Recall = 0.7357, F1-Score = 0.7474
-Fold 2: Recall = 0.7634, F1-Score = 0.7657
-Fold 3: Recall = 0.7598, F1-Score = 0.7652
-Fold 4: Recall = 0.6976, F1-Score = 0.7261
-Fold 5: Recall = 0.6953, F1-Score = 0.7180
-Fold 6: Recall = 0.7697, F1-Score = 0.7670
-Fold 7: Recall = 0.7239, F1-Score = 0.7468
-Fold 8: Recall = 0.7715, F1-Score = 0.7973
-Fold 9: Recall = 0.6798, F1-Score = 0.7053
-Fold 10: Recall = 0.7235, F1-Score = 0.7390
+Fold 1: Recall = 0.6641, F1-Score = 0.6775
+Fold 2: Recall = 0.6270, F1-Score = 0.6571
+Fold 3: Recall = 0.6833, F1-Score = 0.6876
+Fold 4: Recall = 0.5769, F1-Score = 0.5819
+Fold 5: Recall = 0.6937, F1-Score = 0.7037
+Fold 6: Recall = 0.7390, F1-Score = 0.7388
+Fold 7: Recall = 0.6935, F1-Score = 0.7029
+Fold 8: Recall = 0.7099, F1-Score = 0.7215
+Fold 9: Recall = 0.6776, F1-Score = 0.6813
+Fold 10: Recall = 0.6586, F1-Score = 0.6681
 
 Cross-validation results:
-                Model    Recall        F1
-0       MultinomialNB  0.622925  0.609540
-1  LogisticRegression  0.699536  0.715465
-2        RandomForest  0.732021  0.747789
+          Model    Recall        F1
+0  RandomForest  0.672353  0.682044
 
-===== Evaluating MultinomialNB =====
-Hamming Loss for MultinomialNB: 0.22670250896057348
+================================================================================
+TEST SET EVALUATION FOR TRADITIONAL ML MODELS
+================================================================================
 
-===== Evaluating LogisticRegression =====
-Hamming Loss for LogisticRegression: 0.22132616487455198
+===== Evaluating RandomForest on Test Set =====
 
 ===== Evaluating RandomForest =====
-Hamming Loss for RandomForest: 0.20161290322580644
+Hamming Loss for RandomForest: 0.26433691756272404
 
-===== Training and Evaluating Deep Learning Model via Cross-Validation =====
-2025-11-29 18:11:53.186460: W tensorflow/core/common_runtime/gpu/gpu_bfc_allocator.cc:47] Overriding orig_value setting because the TF_FORCE_GPU_ALLOW_GROWTH environment variable is set. Original config value was 0.
-I0000 00:00:1764439913.186610   14387 gpu_device.cc:2019] Created device /job:localhost/replica:0/task:0/device:GPU:0 with 13942 MB memory:  -> device: 0, name: Tesla T4, pci bus id: 0000:00:04.0, compute capability: 7.5
-WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1764439915.051725   14554 service.cc:152] XLA service 0x7f627c003d20 initialized for platform CUDA (this does not guarantee that XLA will be used). Devices:
-I0000 00:00:1764439915.051778   14554 service.cc:160]   StreamExecutor device (0): Tesla T4, Compute Capability 7.5
-2025-11-29 18:11:55.078483: I tensorflow/compiler/mlir/tensorflow/utils/dump_mlir_util.cc:269] disabling MLIR crash reproducer, set env var `MLIR_CRASH_REPRODUCER_DIRECTORY` to enable.
-I0000 00:00:1764439915.259201   14554 cuda_dnn.cc:529] Loaded cuDNN version 91002
-I0000 00:00:1764439916.767956   14554 device_compiler.h:188] Compiled cluster using XLA!  This line is logged at most once for the lifetime of the process.
-4/4 ━━━━━━━━━━━━━━━━━━━━ 0s 55ms/step
-Fold 1: <lambda> Recall = 0.8201, F1-Score = 0.8055
-4/4 ━━━━━━━━━━━━━━━━━━━━ 0s 80ms/step
-Fold 2: <lambda> Recall = 0.7854, F1-Score = 0.7742
-WARNING:tensorflow:5 out of the last 9 calls to <function TensorFlowTrainer.make_predict_function.<locals>.one_step_on_data_distributed at 0x7f6322ae1300> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
-1/4 ━━━━━━━━━━━━━━━━━━━━ 0s 164ms/stepWARNING:tensorflow:6 out of the last 12 calls to <function TensorFlowTrainer.make_predict_function.<locals>.one_step_on_data_distributed at 0x7f6322ae1300> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
-4/4 ━━━━━━━━━━━━━━━━━━━━ 0s 100ms/step
-Fold 3: <lambda> Recall = 0.7076, F1-Score = 0.7093
-4/4 ━━━━━━━━━━━━━━━━━━━━ 0s 81ms/step
-Fold 4: <lambda> Recall = 0.6904, F1-Score = 0.7060
-4/4 ━━━━━━━━━━━━━━━━━━━━ 0s 99ms/step
-Fold 5: <lambda> Recall = 0.7020, F1-Score = 0.7239
-4/4 ━━━━━━━━━━━━━━━━━━━━ 1s 88ms/step
-Fold 6: <lambda> Recall = 0.6963, F1-Score = 0.7249
-4/4 ━━━━━━━━━━━━━━━━━━━━ 0s 55ms/step
-Fold 7: <lambda> Recall = 0.7359, F1-Score = 0.7191
-4/4 ━━━━━━━━━━━━━━━━━━━━ 0s 56ms/step
-Fold 8: <lambda> Recall = 0.8238, F1-Score = 0.8308
-4/4 ━━━━━━━━━━━━━━━━━━━━ 0s 80ms/step
-Fold 9: <lambda> Recall = 0.7014, F1-Score = 0.7116
-4/4 ━━━━━━━━━━━━━━━━━━━━ 0s 59ms/step
-Fold 10: <lambda> Recall = 0.7601, F1-Score = 0.7731
+[INFO] MLP model disabled by feature flag
 
-Deep Learning Cross-validation results:
-Recall: 0.7423
-F1-score: 0.7478
-
-===== Training Deep Learning Model on Entire Training Set =====
-
-===== Evaluating MLP Model =====
-9/9 ━━━━━━━━━━━━━━━━━━━━ 1s 49ms/step
-Hamming Loss for MLP Model: 0.22401433691756273
-
-===== Training and Evaluating CNN Model via Cross-Validation =====
-4/4 ━━━━━━━━━━━━━━━━━━━━ 1s 101ms/step
-Fold 1: <lambda> Recall = 0.8173, F1-Score = 0.7997
-4/4 ━━━━━━━━━━━━━━━━━━━━ 1s 99ms/step
-Fold 2: <lambda> Recall = 0.7126, F1-Score = 0.7227
-4/4 ━━━━━━━━━━━━━━━━━━━━ 1s 97ms/step
-Fold 3: <lambda> Recall = 0.7026, F1-Score = 0.6920
-4/4 ━━━━━━━━━━━━━━━━━━━━ 1s 103ms/step
-Fold 4: <lambda> Recall = 0.7227, F1-Score = 0.7176
-4/4 ━━━━━━━━━━━━━━━━━━━━ 1s 99ms/step
-Fold 5: <lambda> Recall = 0.8057, F1-Score = 0.7834
-4/4 ━━━━━━━━━━━━━━━━━━━━ 1s 95ms/step
-Fold 6: <lambda> Recall = 0.8179, F1-Score = 0.7951
-4/4 ━━━━━━━━━━━━━━━━━━━━ 1s 94ms/step
-Fold 7: <lambda> Recall = 0.7638, F1-Score = 0.7709
-4/4 ━━━━━━━━━━━━━━━━━━━━ 1s 97ms/step
-Fold 8: <lambda> Recall = 0.8582, F1-Score = 0.8404
-4/4 ━━━━━━━━━━━━━━━━━━━━ 1s 98ms/step
-Fold 9: <lambda> Recall = 0.6891, F1-Score = 0.6864
-4/4 ━━━━━━━━━━━━━━━━━━━━ 1s 144ms/step
-Fold 10: <lambda> Recall = 0.8102, F1-Score = 0.7990
-
-CNN Cross-validation results:
-Recall: 0.7700
-F1-score: 0.7607
-
-===== Training CNN Model on Entire Training Set =====
-Epoch 1/20
-28/28 ━━━━━━━━━━━━━━━━━━━━ 6s 128ms/step - accuracy: 0.3965 - loss: 0.6423 - val_accuracy: 0.4865 - val_loss: 0.4519
-Epoch 2/20
-28/28 ━━━━━━━━━━━━━━━━━━━━ 0s 6ms/step - accuracy: 0.4199 - loss: 0.5421 - val_accuracy: 0.4865 - val_loss: 0.4403
-Epoch 3/20
-28/28 ━━━━━━━━━━━━━━━━━━━━ 0s 6ms/step - accuracy: 0.4667 - loss: 0.4716 - val_accuracy: 0.4820 - val_loss: 0.4269
-Epoch 4/20
-28/28 ━━━━━━━━━━━━━━━━━━━━ 0s 6ms/step - accuracy: 0.5425 - loss: 0.4095 - val_accuracy: 0.4820 - val_loss: 0.4136
-Epoch 5/20
-28/28 ━━━━━━━━━━━━━━━━━━━━ 0s 7ms/step - accuracy: 0.5628 - loss: 0.3441 - val_accuracy: 0.4820 - val_loss: 0.3984
-Epoch 6/20
-28/28 ━━━━━━━━━━━━━━━━━━━━ 0s 6ms/step - accuracy: 0.5833 - loss: 0.2648 - val_accuracy: 0.4910 - val_loss: 0.3820
-Epoch 7/20
-28/28 ━━━━━━━━━━━━━━━━━━━━ 0s 6ms/step - accuracy: 0.5652 - loss: 0.1905 - val_accuracy: 0.4910 - val_loss: 0.3803
-Epoch 8/20
-28/28 ━━━━━━━━━━━━━━━━━━━━ 0s 6ms/step - accuracy: 0.5539 - loss: 0.1125 - val_accuracy: 0.4775 - val_loss: 0.3866
-Epoch 9/20
-28/28 ━━━━━━━━━━━━━━━━━━━━ 0s 6ms/step - accuracy: 0.5703 - loss: 0.0630 - val_accuracy: 0.4910 - val_loss: 0.4013
-Epoch 10/20
-28/28 ━━━━━━━━━━━━━━━━━━━━ 0s 6ms/step - accuracy: 0.6191 - loss: 0.0457 - val_accuracy: 0.4955 - val_loss: 0.4333
-Epoch 11/20
-28/28 ━━━━━━━━━━━━━━━━━━━━ 0s 6ms/step - accuracy: 0.6191 - loss: 0.0326 - val_accuracy: 0.4955 - val_loss: 0.4628
-Epoch 12/20
-28/28 ━━━━━━━━━━━━━━━━━━━━ 0s 6ms/step - accuracy: 0.6272 - loss: 0.0282 - val_accuracy: 0.4640 - val_loss: 0.4819
-
-===== Evaluating CNN Model =====
-9/9 ━━━━━━━━━━━━━━━━━━━━ 1s 51ms/step
-Hamming Loss for CNN Model: 0.1863799283154122
-F1 score distribution plot saved at ..
+[INFO] CNN model disabled by feature flag
 
 All processes completed successfully.
 
 ---------------------------------------------------------
 
 Processing with Balanced Data.
+[OK] Loaded UI configuration from: configs/ui_config.json
+
+================================================================================
+CONFIGURATION FOR BALANCED DATA
+================================================================================
+
+[MODELS ENABLED]
+  MultinomialNB: False
+  LogisticRegression: False
+  RandomForest: True
+  MLP: False
+  CNN: False
+  Cross-Validation: True
+  Visualizations: True
+================================================================================
+
 Label counts in y_train:
-type_blocker          492
-type_bug              470
-type_documentation    497
-type_enhancement      467
+type_blocker          491
+type_bug              454
+type_documentation    494
+type_enhancement      466
 dtype: int64
 
 Label counts in y_test:
 type_blocker          123
-type_bug              117
-type_documentation    124
+type_bug              113
+type_documentation    123
 type_enhancement      117
 dtype: int64
 Description length distribution plot saved at ..
 Class distribution plot saved at ..
-Label correlation matrix plot saved at ..
-Word cloud for 'type_blocker' saved as './wordcloud_type_blocker.png'.
-Word cloud for 'type_bug' saved as './wordcloud_type_bug.png'.
-Word cloud for 'type_documentation' saved as './wordcloud_type_documentation.png'.
-Word cloud for 'type_enhancement' saved as './wordcloud_type_enhancement.png'.
-
-Total unique words collected from word clouds: 95
+[INFO] Wordcloud vocabulary requested but wordclouds disabled, using None
 
 Selected top 50 features based on Chi-Square scores:
-['seem' 's' 'Spring Framework' 'due' 'issue SPR' 'spring io'
- 'Spring Batch' 'root cause' 'Spring' 'x' 'Spring Data' 'Juergen Hoeller'
- 'Spring MVC' 'exit code' 'Spring Integration' 'document discusses'
- 'io browse' 'reference documentation' 'document highlights'
- 'Spring Security']
-Top 20 features plotted at ..
+['documentation' 'boot' 'upgrade' 'document' 'security' 'release' 'jira'
+ 'reference' 'section' 'batch' 'actuator' 'discusses' 'affects' 'juergen'
+ 'hoeller' 'javadoc' 'application' 'browse' 'spr' 'opened']
+[INFO] RandomForest enabled (n_estimators=100)
 
-===== Cross-Validating MultinomialNB =====
-Fold 1: Recall = 0.8008, F1-Score = 0.8101
-Fold 2: Recall = 0.8050, F1-Score = 0.8130
-Fold 3: Recall = 0.8200, F1-Score = 0.8109
-Fold 4: Recall = 0.7607, F1-Score = 0.7731
-Fold 5: Recall = 0.8148, F1-Score = 0.8205
-Fold 6: Recall = 0.7845, F1-Score = 0.8125
-Fold 7: Recall = 0.7614, F1-Score = 0.7816
-Fold 8: Recall = 0.7483, F1-Score = 0.7635
-Fold 9: Recall = 0.7885, F1-Score = 0.7894
-Fold 10: Recall = 0.7427, F1-Score = 0.7507
-
-===== Cross-Validating LogisticRegression =====
-Fold 1: Recall = 0.8269, F1-Score = 0.8149
-Fold 2: Recall = 0.8575, F1-Score = 0.8294
-Fold 3: Recall = 0.8564, F1-Score = 0.8261
-Fold 4: Recall = 0.7867, F1-Score = 0.7733
-Fold 5: Recall = 0.8415, F1-Score = 0.8290
-Fold 6: Recall = 0.8525, F1-Score = 0.8523
-Fold 7: Recall = 0.8036, F1-Score = 0.7818
-Fold 8: Recall = 0.8421, F1-Score = 0.8205
-Fold 9: Recall = 0.8154, F1-Score = 0.7939
-Fold 10: Recall = 0.8212, F1-Score = 0.8017
+================================================================================
+CROSS-VALIDATION FOR TRADITIONAL ML MODELS
+================================================================================
 
 ===== Cross-Validating RandomForest =====
-Fold 1: Recall = 0.8998, F1-Score = 0.8949
-Fold 2: Recall = 0.8676, F1-Score = 0.8551
-Fold 3: Recall = 0.8612, F1-Score = 0.8498
-Fold 4: Recall = 0.8929, F1-Score = 0.8877
-Fold 5: Recall = 0.8732, F1-Score = 0.8659
-Fold 6: Recall = 0.9102, F1-Score = 0.9055
-Fold 7: Recall = 0.8408, F1-Score = 0.8353
-Fold 8: Recall = 0.8892, F1-Score = 0.8793
-Fold 9: Recall = 0.9046, F1-Score = 0.9020
-Fold 10: Recall = 0.8682, F1-Score = 0.8651
+Fold 1: Recall = 0.8560, F1-Score = 0.8622
+Fold 2: Recall = 0.8483, F1-Score = 0.8557
+Fold 3: Recall = 0.9004, F1-Score = 0.8970
+Fold 4: Recall = 0.8463, F1-Score = 0.8520
+Fold 5: Recall = 0.9026, F1-Score = 0.8977
+Fold 6: Recall = 0.8870, F1-Score = 0.8804
+Fold 7: Recall = 0.8771, F1-Score = 0.8699
+Fold 8: Recall = 0.8477, F1-Score = 0.8305
+Fold 9: Recall = 0.8528, F1-Score = 0.8468
+Fold 10: Recall = 0.8666, F1-Score = 0.8634
 
 Cross-validation results:
-                Model    Recall        F1
-0       MultinomialNB  0.782670  0.792531
-1  LogisticRegression  0.830374  0.812286
-2        RandomForest  0.880755  0.874064
+          Model    Recall        F1
+0  RandomForest  0.868478  0.865547
 
-===== Evaluating MultinomialNB =====
-Hamming Loss for MultinomialNB: 0.18984962406015038
+================================================================================
+TEST SET EVALUATION FOR TRADITIONAL ML MODELS
+================================================================================
 
-===== Evaluating LogisticRegression =====
-Hamming Loss for LogisticRegression: 0.18233082706766918
+===== Evaluating RandomForest on Test Set =====
 
 ===== Evaluating RandomForest =====
-Hamming Loss for RandomForest: 0.1099624060150376
+Hamming Loss for RandomForest: 0.1316793893129771
 
-===== Training and Evaluating Deep Learning Model via Cross-Validation =====
-4/4 ━━━━━━━━━━━━━━━━━━━━ 0s 63ms/step
-Fold 1: <lambda> Recall = 0.8374, F1-Score = 0.8340
-4/4 ━━━━━━━━━━━━━━━━━━━━ 0s 57ms/step
-Fold 2: <lambda> Recall = 0.8736, F1-Score = 0.8579
-4/4 ━━━━━━━━━━━━━━━━━━━━ 0s 57ms/step
-Fold 3: <lambda> Recall = 0.8356, F1-Score = 0.8165
-4/4 ━━━━━━━━━━━━━━━━━━━━ 0s 60ms/step
-Fold 4: <lambda> Recall = 0.8293, F1-Score = 0.8314
-4/4 ━━━━━━━━━━━━━━━━━━━━ 0s 60ms/step
-Fold 5: <lambda> Recall = 0.8417, F1-Score = 0.8405
-4/4 ━━━━━━━━━━━━━━━━━━━━ 1s 92ms/step
-Fold 6: <lambda> Recall = 0.8628, F1-Score = 0.8626
-4/4 ━━━━━━━━━━━━━━━━━━━━ 0s 59ms/step
-Fold 7: <lambda> Recall = 0.8352, F1-Score = 0.8259
-4/4 ━━━━━━━━━━━━━━━━━━━━ 0s 61ms/step
-Fold 8: <lambda> Recall = 0.8206, F1-Score = 0.8051
-4/4 ━━━━━━━━━━━━━━━━━━━━ 0s 81ms/step
-Fold 9: <lambda> Recall = 0.8527, F1-Score = 0.8419
-4/4 ━━━━━━━━━━━━━━━━━━━━ 0s 59ms/step
-Fold 10: <lambda> Recall = 0.8106, F1-Score = 0.8191
+[INFO] MLP model disabled by feature flag
 
-Deep Learning Cross-validation results:
-Recall: 0.8399
-F1-score: 0.8335
-
-===== Training Deep Learning Model on Entire Training Set =====
-
-===== Evaluating MLP Model =====
-9/9 ━━━━━━━━━━━━━━━━━━━━ 0s 22ms/step
-Hamming Loss for MLP Model: 0.17857142857142858
-
-===== Training and Evaluating CNN Model via Cross-Validation =====
-4/4 ━━━━━━━━━━━━━━━━━━━━ 1s 100ms/step
-Fold 1: <lambda> Recall = 0.9215, F1-Score = 0.9282
-4/4 ━━━━━━━━━━━━━━━━━━━━ 1s 101ms/step
-Fold 2: <lambda> Recall = 0.9524, F1-Score = 0.9402
-4/4 ━━━━━━━━━━━━━━━━━━━━ 1s 95ms/step
-Fold 3: <lambda> Recall = 0.9679, F1-Score = 0.9487
-4/4 ━━━━━━━━━━━━━━━━━━━━ 1s 97ms/step
-Fold 4: <lambda> Recall = 0.9681, F1-Score = 0.9657
-4/4 ━━━━━━━━━━━━━━━━━━━━ 1s 97ms/step
-Fold 5: <lambda> Recall = 0.9843, F1-Score = 0.9768
-4/4 ━━━━━━━━━━━━━━━━━━━━ 1s 150ms/step
-Fold 6: <lambda> Recall = 0.9268, F1-Score = 0.9290
-4/4 ━━━━━━━━━━━━━━━━━━━━ 1s 96ms/step
-Fold 7: <lambda> Recall = 0.9525, F1-Score = 0.9549
-4/4 ━━━━━━━━━━━━━━━━━━━━ 1s 146ms/step
-Fold 8: <lambda> Recall = 0.9261, F1-Score = 0.9236
-4/4 ━━━━━━━━━━━━━━━━━━━━ 1s 102ms/step
-Fold 9: <lambda> Recall = 0.9474, F1-Score = 0.9573
-4/4 ━━━━━━━━━━━━━━━━━━━━ 1s 97ms/step
-Fold 10: <lambda> Recall = 0.9418, F1-Score = 0.9467
-
-CNN Cross-validation results:
-Recall: 0.9489
-F1-score: 0.9471
-
-===== Training CNN Model on Entire Training Set =====
-Epoch 1/20
-26/26 ━━━━━━━━━━━━━━━━━━━━ 5s 117ms/step - accuracy: 0.3798 - loss: 0.6778 - val_accuracy: 0.0725 - val_loss: 0.9089
-Epoch 2/20
-26/26 ━━━━━━━━━━━━━━━━━━━━ 0s 6ms/step - accuracy: 0.6659 - loss: 0.6096 - val_accuracy: 0.0725 - val_loss: 0.8179
-Epoch 3/20
-26/26 ━━━━━━━━━━━━━━━━━━━━ 0s 6ms/step - accuracy: 0.7612 - loss: 0.4492 - val_accuracy: 0.8792 - val_loss: 0.7492
-Epoch 4/20
-26/26 ━━━━━━━━━━━━━━━━━━━━ 0s 6ms/step - accuracy: 0.6617 - loss: 0.2972 - val_accuracy: 0.9227 - val_loss: 0.6137
-Epoch 5/20
-26/26 ━━━━━━━━━━━━━━━━━━━━ 0s 6ms/step - accuracy: 0.6060 - loss: 0.1967 - val_accuracy: 0.8937 - val_loss: 0.4374
-Epoch 6/20
-26/26 ━━━━━━━━━━━━━━━━━━━━ 0s 6ms/step - accuracy: 0.6661 - loss: 0.1315 - val_accuracy: 0.8792 - val_loss: 0.2894
-Epoch 7/20
-26/26 ━━━━━━━━━━━━━━━━━━━━ 0s 6ms/step - accuracy: 0.6217 - loss: 0.0825 - val_accuracy: 0.8696 - val_loss: 0.2135
-Epoch 8/20
-26/26 ━━━━━━━━━━━━━━━━━━━━ 0s 6ms/step - accuracy: 0.5799 - loss: 0.0558 - val_accuracy: 0.8357 - val_loss: 0.2105
-Epoch 9/20
-26/26 ━━━━━━━━━━━━━━━━━━━━ 0s 6ms/step - accuracy: 0.6592 - loss: 0.0424 - val_accuracy: 0.8068 - val_loss: 0.1910
-Epoch 10/20
-26/26 ━━━━━━━━━━━━━━━━━━━━ 0s 6ms/step - accuracy: 0.6201 - loss: 0.0366 - val_accuracy: 0.8116 - val_loss: 0.1787
-Epoch 11/20
-26/26 ━━━━━━━━━━━━━━━━━━━━ 0s 6ms/step - accuracy: 0.5917 - loss: 0.0310 - val_accuracy: 0.8116 - val_loss: 0.2077
-Epoch 12/20
-26/26 ━━━━━━━━━━━━━━━━━━━━ 0s 6ms/step - accuracy: 0.6448 - loss: 0.0246 - val_accuracy: 0.8164 - val_loss: 0.1932
-Epoch 13/20
-26/26 ━━━━━━━━━━━━━━━━━━━━ 0s 6ms/step - accuracy: 0.6189 - loss: 0.0192 - val_accuracy: 0.7971 - val_loss: 0.2039
-Epoch 14/20
-26/26 ━━━━━━━━━━━━━━━━━━━━ 0s 6ms/step - accuracy: 0.6202 - loss: 0.0152 - val_accuracy: 0.8357 - val_loss: 0.2216
-Epoch 15/20
-26/26 ━━━━━━━━━━━━━━━━━━━━ 0s 6ms/step - accuracy: 0.6263 - loss: 0.0148 - val_accuracy: 0.8309 - val_loss: 0.2093
-
-===== Evaluating CNN Model =====
-9/9 ━━━━━━━━━━━━━━━━━━━━ 1s 45ms/step
-Hamming Loss for CNN Model: 0.13721804511278196
-F1 score distribution plot saved at ..
+[INFO] CNN model disabled by feature flag
 
 All processes completed successfully.
+
+================================================================================
+PIPELINE COMPLETED
+================================================================================

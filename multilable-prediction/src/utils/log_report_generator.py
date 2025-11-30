@@ -1600,7 +1600,7 @@ class LogReportGenerator:
                 <li>✓ Performance gains <strong>cannot be attributed to chance</strong></li>
                 <li>✓ The results are <strong>reproducible and reliable</strong> across cross-validation folds</li>
             </ul>
-            <p style="margin-top: 15px;"><em>This analysis satisfies the requirement for statistical significance testing to validate model improvements (Demšar, 2006).</em></p>
+            <p style="margin-top: 15px;"><em>This analysis is aligned with the requirement for statistical significance testing to validate model improvements (Demšar, 2006).</em></p>
         </div>
         '''
         
