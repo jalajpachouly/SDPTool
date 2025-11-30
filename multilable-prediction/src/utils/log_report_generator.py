@@ -107,6 +107,9 @@ class LogReportGenerator:
         
         # Extract deep learning results
         self._extract_deep_learning_results(section, section_key)
+        
+        # Extract error analysis
+        self._extract_error_analysis(section, section_key)
     
     def _extract_label_counts(self, section: str, key: str):
         """Extract label counts for train and test sets."""
@@ -250,6 +253,101 @@ class LogReportGenerator:
         if epochs and 'CNN' in self.report_data[key]['deep_learning']:
             self.report_data[key]['deep_learning']['CNN']['training_epochs'] = epochs
     
+    def _extract_error_analysis(self, section: str, key: str):
+        """Extract error analysis data for each model."""
+        self.report_data[key]['error_analysis'] = {}
+        
+        # Pattern to find error analysis sections
+        # Matches: "----- Error Analysis for ModelName -----" followed by the detailed analysis content
+        # Content is between "Detailed Misclassification Analysis" header and "Hamming Loss" line
+        error_pattern = r'----- Error Analysis for (\w+) -----\s*\nDetailed Misclassification Analysis for \w+:\s*\n={80,}\s*\n(.*?)(?=\n={80,}\s*\nHamming Loss for \w+:)'
+        
+        for error_match in re.finditer(error_pattern, section, re.DOTALL):
+            model_name = error_match.group(1)
+            error_section = error_match.group(2)
+            
+            model_errors = {}
+            
+            # Extract overall statistics
+            overall_pattern = r'Overall Label-wise Accuracy: ([\d.]+)\s*\nTotal label predictions: (\d+)\s*\nCorrectly classified: (\d+)\s*\nMisclassified: (\d+)'
+            overall_match = re.search(overall_pattern, error_section)
+            if overall_match:
+                model_errors['overall'] = {
+                    'accuracy': float(overall_match.group(1)),
+                    'total_predictions': int(overall_match.group(2)),
+                    'correct': int(overall_match.group(3)),
+                    'misclassified': int(overall_match.group(4))
+                }
+            
+            # Extract per-label confusion matrix
+            model_errors['per_label'] = []
+            label_pattern = r'Label: ([\w_]+)\s*\n\s*True Positives \(TP\): (\d+)\s*\n\s*True Negatives \(TN\): (\d+)\s*\n\s*False Positives \(FP\): (\d+).*?\n\s*False Negatives \(FN\): (\d+).*?\n\s*Precision: ([\d.]+)\s*\n\s*Recall: ([\d.]+)\s*\n\s*Specificity: ([\d.]+)'
+            for label_match in re.finditer(label_pattern, error_section, re.DOTALL):
+                model_errors['per_label'].append({
+                    'label': label_match.group(1),
+                    'tp': int(label_match.group(2)),
+                    'tn': int(label_match.group(3)),
+                    'fp': int(label_match.group(4)),
+                    'fn': int(label_match.group(5)),
+                    'precision': float(label_match.group(6)),
+                    'recall': float(label_match.group(7)),
+                    'specificity': float(label_match.group(8))
+                })
+            
+            # Extract sample-level statistics
+            perfect_pattern = r'Samples with perfect predictions: (\d+) \(([\d.]+)%\)'
+            perfect_match = re.search(perfect_pattern, error_section)
+            if perfect_match:
+                model_errors['sample_stats'] = {
+                    'perfect_predictions': int(perfect_match.group(1)),
+                    'perfect_pct': float(perfect_match.group(2))
+                }
+            
+            # Extract error distribution
+            model_errors['error_distribution'] = []
+            dist_pattern = r'(\d+) label error\(s\): (\d+) samples \(([\d.]+)%\)'
+            for dist_match in re.finditer(dist_pattern, error_section):
+                model_errors['error_distribution'].append({
+                    'num_errors': int(dist_match.group(1)),
+                    'count': int(dist_match.group(2)),
+                    'percentage': float(dist_match.group(3))
+                })
+            
+            # Extract prediction patterns
+            avg_pattern = r'Average true labels per sample: ([\d.]+)\s*\nAverage predicted labels per sample: ([\d.]+)'
+            avg_match = re.search(avg_pattern, error_section)
+            if avg_match:
+                model_errors['avg_labels'] = {
+                    'true': float(avg_match.group(1)),
+                    'predicted': float(avg_match.group(2))
+                }
+            
+            # Extract over/under prediction
+            pred_pattern = r'Over-predicted \(too many labels\): (\d+) samples \(([\d.]+)%\)\s*\n\s*Under-predicted \(too few labels\): (\d+) samples \(([\d.]+)%\)\s*\n\s*Exact label count match: (\d+) samples \(([\d.]+)%\)'
+            pred_match = re.search(pred_pattern, error_section)
+            if pred_match:
+                model_errors['prediction_patterns'] = {
+                    'over_predicted': {'count': int(pred_match.group(1)), 'pct': float(pred_match.group(2))},
+                    'under_predicted': {'count': int(pred_match.group(3)), 'pct': float(pred_match.group(4))},
+                    'exact_match': {'count': int(pred_match.group(5)), 'pct': float(pred_match.group(6))}
+                }
+            
+            # Extract top misclassification patterns
+            model_errors['top_patterns'] = []
+            pattern_section = re.search(r'Top 5 misclassification patterns:(.*?)(?=\n={80})', error_section, re.DOTALL)
+            if pattern_section:
+                pattern_text = pattern_section.group(1)
+                pattern_entry = r'Pattern (\d+) \(occurred (\d+) times\):\s*\n\s*True labels: (.*?)\n\s*Predicted labels: (.*?)(?=\n\s*Pattern|\Z)'
+                for p_match in re.finditer(pattern_entry, pattern_text, re.DOTALL):
+                    model_errors['top_patterns'].append({
+                        'rank': int(p_match.group(1)),
+                        'count': int(p_match.group(2)),
+                        'true_labels': p_match.group(3).strip(),
+                        'predicted_labels': p_match.group(4).strip()
+                    })
+            
+            self.report_data[key]['error_analysis'][model_name] = model_errors
+    
     def _generate_comparison(self):
         """Generate comparison metrics between balanced and unbalanced data."""
         comparison = {}
@@ -390,6 +488,7 @@ class LogReportGenerator:
         {self._build_model_performance_section()}
         {self._build_deep_learning_section()}
         {self._build_statistical_significance_section()}
+        {self._build_error_analysis_section()}
         {self._build_comparison_section()}
         {self._build_recommendations()}
         {self._build_footer()}
@@ -803,8 +902,9 @@ class LogReportGenerator:
                 <li><a href="#traditional-ml">6. Traditional ML Performance</a></li>
                 <li><a href="#deep-learning">7. Deep Learning Performance</a></li>
                 <li><a href="#statistical-significance">8. Statistical Significance Testing</a></li>
-                <li><a href="#comparison">9. Balanced vs Unbalanced Comparison</a></li>
-                <li><a href="#recommendations">10. Recommendations & Insights</a></li>
+                <li><a href="#error-analysis">9. Error Analysis & Misclassifications</a></li>
+                <li><a href="#comparison">10. Balanced vs Unbalanced Comparison</a></li>
+                <li><a href="#recommendations">11. Recommendations & Insights</a></li>
             </ol>
         </nav>
         """
@@ -1251,6 +1351,28 @@ class LogReportGenerator:
         </div>
         '''
         
+        # Check if CV results exist for any dataset
+        has_cv_data = ('cv_results' in self.report_data['unbalanced'] and self.report_data['unbalanced']['cv_results']) or \
+                      ('cv_results' in self.report_data['balanced'] and self.report_data['balanced']['cv_results'])
+        
+        if not has_cv_data:
+            html += '''
+            <div class="warning-box">
+                <h4>⚠️ Not Configured - Enable 'Statistical Significance Testing' in configuration to view this section</h4>
+                <p>Statistical significance analysis requires cross-validation data. To enable this feature:</p>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>Open the Java UI application</li>
+                    <li>Navigate to <strong>General Settings</strong> panel</li>
+                    <li>Check <strong>"Enable Cross-Validation (Global)"</strong></li>
+                    <li>Check <strong>"Enable Statistical Significance Testing"</strong></li>
+                    <li>Save configuration and re-run the pipeline</li>
+                </ul>
+                <p style="margin-top: 10px; font-style: italic;">This feature provides rigorous statistical validation using Wilcoxon Signed-Rank Test to verify that model improvements are not due to random variation.</p>
+            </div>
+            '''
+            html += '</section>'
+            return html
+        
         # 8.1 Unbalanced Data Analysis
         if 'cv_results' in self.report_data['unbalanced']:
             html += '<h3>8.1. Statistical Significance Testing - Unbalanced Data</h3>'
@@ -1607,6 +1729,187 @@ class LogReportGenerator:
         html += '</section>'
         return html
     
+    def _build_error_analysis_section(self) -> str:
+        """Build error analysis and misclassification section."""
+        html = '<section id="error-analysis"><h2>9. Error Analysis & Misclassifications</h2>'
+        html += '<p style="text-align: right; margin: -10px 0 20px 0;"><a href="#toc" style="text-decoration: none; color: #2196F3; font-size: 0.9em;">↑ Back to Index</a></p>'
+        
+        html += '''
+        <div class="info-box">
+            <h4>🔍 About This Section</h4>
+            <p>Detailed analysis of misclassified samples helps identify model weaknesses and opportunities for improvement. 
+            This section examines confusion patterns, over/under-prediction tendencies, and specific label-level errors 
+            across both balanced and unbalanced datasets.</p>
+        </div>
+        '''
+        
+        for data_type in ['unbalanced', 'balanced']:
+            if 'error_analysis' in self.report_data[data_type] and self.report_data[data_type]['error_analysis']:
+                html += f'<h3>9.{1 if data_type == "unbalanced" else 2}. {data_type.capitalize()} Data Error Analysis</h3>'
+                
+                for model_name, error_data in self.report_data[data_type]['error_analysis'].items():
+                    html += f'<h4>{model_name} Model</h4>'
+                    
+                    # Overall Statistics
+                    if 'overall' in error_data:
+                        overall = error_data['overall']
+                        html += '<div class="metric-grid">'
+                        html += f'''
+                        <div class="metric-card">
+                            <h4>Label-wise Accuracy</h4>
+                            <div class="metric-value">{overall['accuracy']:.4f}</div>
+                            <div class="metric-label">{overall['total_predictions']} total predictions</div>
+                        </div>
+                        <div class="metric-card">
+                            <h4>Correctly Classified</h4>
+                            <div class="metric-value" style="color: #4CAF50;">{overall['correct']}</div>
+                            <div class="metric-label">{(overall['correct']/overall['total_predictions']*100):.1f}% of labels</div>
+                        </div>
+                        <div class="metric-card">
+                            <h4>Misclassified</h4>
+                            <div class="metric-value" style="color: #f44336;">{overall['misclassified']}</div>
+                            <div class="metric-label">{(overall['misclassified']/overall['total_predictions']*100):.1f}% of labels</div>
+                        </div>
+                        '''
+                        html += '</div>'
+                    
+                    # Sample-level Statistics
+                    if 'sample_stats' in error_data:
+                        stats = error_data['sample_stats']
+                        html += f'''
+                        <div class="success-box">
+                            <h4>✓ Perfect Predictions</h4>
+                            <p><strong>{stats['perfect_predictions']}</strong> samples ({stats['perfect_pct']:.1f}%) 
+                            had all labels predicted correctly (perfect match).</p>
+                        </div>
+                        '''
+                    
+                    # Error Distribution
+                    if 'error_distribution' in error_data and error_data['error_distribution']:
+                        html += '<h5>Error Distribution by Sample</h5>'
+                        html += '<div class="chart-container">'
+                        
+                        for err_dist in error_data['error_distribution']:
+                            width_pct = err_dist['percentage']
+                            # Color gradient from yellow to red based on number of errors
+                            if err_dist['num_errors'] == 1:
+                                bar_color = '#FFC107'
+                            elif err_dist['num_errors'] == 2:
+                                bar_color = '#FF9800'
+                            else:
+                                bar_color = '#f44336'
+                            
+                            html += f'''
+                            <div style="margin-bottom: 12px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                                    <span style="font-weight: 600;">{err_dist['num_errors']} Label Error(s)</span>
+                                    <span style="font-weight: bold; color: {bar_color};">{err_dist['count']} samples ({err_dist['percentage']:.1f}%)</span>
+                                </div>
+                                <div style="background: #e0e0e0; border-radius: 8px; height: 24px; overflow: hidden;">
+                                    <div style="background: {bar_color}; width: {width_pct}%; height: 100%; border-radius: 8px;"></div>
+                                </div>
+                            </div>
+                            '''
+                        html += '</div>'
+                    
+                    # Prediction Patterns (Over/Under Prediction)
+                    if 'prediction_patterns' in error_data:
+                        patterns = error_data['prediction_patterns']
+                        html += '<h5>Label Count Prediction Patterns</h5>'
+                        html += '<div class="metric-grid">'
+                        
+                        html += f'''
+                        <div class="metric-card" style="border-left: 4px solid #f44336;">
+                            <h4>Over-Predicted</h4>
+                            <div class="metric-value" style="color: #f44336;">{patterns['over_predicted']['count']}</div>
+                            <div class="metric-label">{patterns['over_predicted']['pct']:.1f}% predicted too many labels</div>
+                        </div>
+                        <div class="metric-card" style="border-left: 4px solid #FF9800;">
+                            <h4>Under-Predicted</h4>
+                            <div class="metric-value" style="color: #FF9800;">{patterns['under_predicted']['count']}</div>
+                            <div class="metric-label">{patterns['under_predicted']['pct']:.1f}% predicted too few labels</div>
+                        </div>
+                        <div class="metric-card" style="border-left: 4px solid #4CAF50;">
+                            <h4>Exact Match</h4>
+                            <div class="metric-value" style="color: #4CAF50;">{patterns['exact_match']['count']}</div>
+                            <div class="metric-label">{patterns['exact_match']['pct']:.1f}% correct label count</div>
+                        </div>
+                        '''
+                        html += '</div>'
+                        
+                        # Average labels comparison
+                        if 'avg_labels' in error_data:
+                            avg = error_data['avg_labels']
+                            html += f'''
+                            <p style="margin-top: 15px;">
+                                <strong>Average labels per sample:</strong> 
+                                True = {avg['true']:.2f}, 
+                                Predicted = {avg['predicted']:.2f}
+                                {'(over-predicting)' if avg['predicted'] > avg['true'] else '(under-predicting)' if avg['predicted'] < avg['true'] else '(balanced)'}
+                            </p>
+                            '''
+                    
+                    # Per-Label Confusion Matrix
+                    if 'per_label' in error_data and error_data['per_label']:
+                        html += '<h5>Per-Label Confusion Matrix Analysis</h5>'
+                        html += '<table><thead><tr><th>Label</th><th>TP</th><th>TN</th><th>FP</th><th>FN</th><th>Precision</th><th>Recall</th><th>Specificity</th></tr></thead><tbody>'
+                        
+                        for label_data in error_data['per_label']:
+                            # Highlight problematic labels (high FP or FN)
+                            row_class = ''
+                            if label_data['fp'] > 10 or label_data['fn'] > 10:
+                                row_class = 'style="background-color: #fff3cd;"'
+                            
+                            html += f'''
+                            <tr {row_class}>
+                                <td><strong>{label_data['label']}</strong></td>
+                                <td>{label_data['tp']}</td>
+                                <td>{label_data['tn']}</td>
+                                <td style="color: #f44336;"><strong>{label_data['fp']}</strong></td>
+                                <td style="color: #FF9800;"><strong>{label_data['fn']}</strong></td>
+                                <td>{label_data['precision']:.4f}</td>
+                                <td>{label_data['recall']:.4f}</td>
+                                <td>{label_data['specificity']:.4f}</td>
+                            </tr>
+                            '''
+                        html += '</tbody></table>'
+                        
+                        html += '<p style="margin-top: 10px; font-size: 0.9em; color: #666;"><em>Note: Rows highlighted in yellow indicate labels with high false positives (FP > 10) or false negatives (FN > 10).</em></p>'
+                    
+                    # Top Misclassification Patterns
+                    if 'top_patterns' in error_data and error_data['top_patterns']:
+                        html += '<h5>Top Misclassification Patterns</h5>'
+                        html += '<div class="info-box">'
+                        
+                        for pattern in error_data['top_patterns']:
+                            html += f'''
+                            <div style="margin-bottom: 15px; padding: 10px; background: white; border-radius: 5px; border-left: 3px solid #2196F3;">
+                                <h4 style="margin: 0 0 8px 0; color: #2196F3;">Pattern #{pattern['rank']} (occurred {pattern['count']} times)</h4>
+                                <p style="margin: 5px 0;"><strong>True labels:</strong> <code>{pattern['true_labels']}</code></p>
+                                <p style="margin: 5px 0;"><strong>Predicted labels:</strong> <code>{pattern['predicted_labels']}</code></p>
+                            </div>
+                            '''
+                        html += '</div>'
+        
+        if not any('error_analysis' in self.report_data[dt] and self.report_data[dt]['error_analysis'] 
+                   for dt in ['unbalanced', 'balanced']):
+            html += '''
+            <div class="warning-box">
+                <h4>⚠️ Not Configured - Enable 'Error Analysis' in configuration to view this section</h4>
+                <p>Error analysis data was not found in the log file. To enable this feature:</p>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>Open the Java UI application</li>
+                    <li>Navigate to <strong>General Settings</strong> panel</li>
+                    <li>Check <strong>"Enable Error Analysis (Misclassification)"</strong></li>
+                    <li>Save configuration and re-run the pipeline</li>
+                </ul>
+                <p style="margin-top: 10px; font-style: italic;">This feature provides detailed analysis of misclassified samples, confusion patterns, and model weaknesses.</p>
+            </div>
+            '''
+        
+        html += '</section>'
+        return html
+    
     def _build_model_performance_section(self) -> str:
         """Build traditional ML model performance section."""
         html = '<section id="traditional-ml"><h2>6. Traditional ML Model Performance</h2>'
@@ -1835,7 +2138,7 @@ class LogReportGenerator:
     
     def _build_comparison_section(self) -> str:
         """Build balanced vs unbalanced comparison section."""
-        html = '<section id="comparison"><h2>9. Balanced vs Unbalanced Data Comparison</h2>'
+        html = '<section id="comparison"><h2>10. Balanced vs Unbalanced Data Comparison</h2>'
         html += '<p style="text-align: right; margin: -10px 0 20px 0;"><a href="#toc" style="text-decoration: none; color: #2196F3; font-size: 0.9em;">↑ Back to Index</a></p>'
         
         # Comprehensive comparison for all models including Deep Learning
@@ -2031,7 +2334,7 @@ class LogReportGenerator:
     
     def _build_recommendations(self) -> str:
         """Build recommendations section."""
-        html = '<section id="recommendations"><h2>10. Recommendations & Insights</h2>'
+        html = '<section id="recommendations"><h2>11. Recommendations & Insights</h2>'
         html += '<p style="text-align: right; margin: -10px 0 20px 0;"><a href="#toc" style="text-decoration: none; color: #2196F3; font-size: 0.9em;">↑ Back to Index</a></p>'
         
         recommendations = []

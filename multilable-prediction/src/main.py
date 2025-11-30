@@ -103,6 +103,10 @@ DEFAULT_CNN_EARLY_STOPPING_PATIENCE = 5
 # Cross-Validation Defaults
 DEFAULT_RUN_CROSS_VALIDATION = True
 
+# Analysis Defaults
+DEFAULT_ENABLE_ERROR_ANALYSIS = False
+DEFAULT_ENABLE_STATISTICAL_SIGNIFICANCE = False
+
 # Visualization Defaults
 DEFAULT_VISUALIZATIONS_ENABLED = True
 DEFAULT_WORDCLOUDS_ENABLED = True
@@ -167,6 +171,131 @@ def get_config_value(ui_config, path, default_value):
         return default_value
 
 
+def analyze_misclassifications(y_test, y_pred, label_names, model_name):
+    """
+    Perform detailed analysis of misclassified samples.
+    
+    Parameters:
+    - y_test (ndarray): True labels (n_samples x n_labels)
+    - y_pred (ndarray): Predicted labels (n_samples x n_labels)
+    - label_names (list): List of label names
+    - model_name (str): Name of the model
+    """
+    n_samples, n_labels = y_test.shape
+    
+    print(f"\nDetailed Misclassification Analysis for {model_name}:")
+    print("=" * 80)
+    
+    # Overall statistics
+    total_labels = n_samples * n_labels
+    correctly_classified = np.sum(y_test == y_pred)
+    misclassified = total_labels - correctly_classified
+    accuracy = correctly_classified / total_labels
+    
+    print(f"\nOverall Label-wise Accuracy: {accuracy:.4f}")
+    print(f"Total label predictions: {total_labels}")
+    print(f"Correctly classified: {correctly_classified}")
+    print(f"Misclassified: {misclassified}")
+    
+    # Per-label confusion analysis
+    print(f"\nPer-Label Confusion Matrix Analysis:")
+    print("-" * 80)
+    
+    for label_idx, label_name in enumerate(label_names):
+        y_true_label = y_test[:, label_idx]
+        y_pred_label = y_pred[:, label_idx]
+        
+        # Calculate confusion matrix components
+        tp = np.sum((y_true_label == 1) & (y_pred_label == 1))
+        tn = np.sum((y_true_label == 0) & (y_pred_label == 0))
+        fp = np.sum((y_true_label == 0) & (y_pred_label == 1))
+        fn = np.sum((y_true_label == 1) & (y_pred_label == 0))
+        
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        specificity = tn / (tn + fp) if (tn + fp) > 0 else 0.0
+        
+        print(f"\nLabel: {label_name}")
+        print(f"  True Positives (TP): {tp}")
+        print(f"  True Negatives (TN): {tn}")
+        print(f"  False Positives (FP): {fp} - Model incorrectly predicted this label")
+        print(f"  False Negatives (FN): {fn} - Model missed this label")
+        print(f"  Precision: {precision:.4f}")
+        print(f"  Recall: {recall:.4f}")
+        print(f"  Specificity: {specificity:.4f}")
+    
+    # Sample-level error patterns
+    print(f"\nSample-level Error Patterns:")
+    print("-" * 80)
+    
+    # Count errors per sample
+    errors_per_sample = np.sum(y_test != y_pred, axis=1)
+    samples_with_errors = np.sum(errors_per_sample > 0)
+    perfect_predictions = n_samples - samples_with_errors
+    
+    print(f"Samples with perfect predictions: {perfect_predictions} ({perfect_predictions/n_samples*100:.2f}%)")
+    print(f"Samples with at least one error: {samples_with_errors} ({samples_with_errors/n_samples*100:.2f}%)")
+    
+    # Distribution of errors
+    print(f"\nError Distribution:")
+    for num_errors in range(1, n_labels + 1):
+        count = np.sum(errors_per_sample == num_errors)
+        if count > 0:
+            print(f"  {num_errors} label error(s): {count} samples ({count/n_samples*100:.2f}%)")
+    
+    # Multi-label specific patterns
+    print(f"\nMulti-label Prediction Patterns:")
+    print("-" * 80)
+    
+    # Average number of labels per sample
+    true_labels_per_sample = np.sum(y_test, axis=1)
+    pred_labels_per_sample = np.sum(y_pred, axis=1)
+    
+    print(f"Average true labels per sample: {np.mean(true_labels_per_sample):.2f}")
+    print(f"Average predicted labels per sample: {np.mean(pred_labels_per_sample):.2f}")
+    
+    # Over-prediction and under-prediction
+    over_predicted = np.sum(pred_labels_per_sample > true_labels_per_sample)
+    under_predicted = np.sum(pred_labels_per_sample < true_labels_per_sample)
+    exact_match = np.sum(pred_labels_per_sample == true_labels_per_sample)
+    
+    print(f"\nLabel Count Prediction:")
+    print(f"  Over-predicted (too many labels): {over_predicted} samples ({over_predicted/n_samples*100:.2f}%)")
+    print(f"  Under-predicted (too few labels): {under_predicted} samples ({under_predicted/n_samples*100:.2f}%)")
+    print(f"  Exact label count match: {exact_match} samples ({exact_match/n_samples*100:.2f}%)")
+    
+    # Label co-occurrence errors
+    print(f"\nMost Common Misclassification Patterns:")
+    print("-" * 80)
+    
+    # Find samples with misclassifications
+    misclassified_mask = errors_per_sample > 0
+    if np.sum(misclassified_mask) > 0:
+        misclass_y_test = y_test[misclassified_mask]
+        misclass_y_pred = y_pred[misclassified_mask]
+        
+        # Count specific error patterns (first 5 most common)
+        error_patterns = {}
+        for i in range(len(misclass_y_test)):
+            true_labels = tuple(np.where(misclass_y_test[i] == 1)[0])
+            pred_labels = tuple(np.where(misclass_y_pred[i] == 1)[0])
+            pattern_key = (true_labels, pred_labels)
+            error_patterns[pattern_key] = error_patterns.get(pattern_key, 0) + 1
+        
+        # Sort by frequency
+        sorted_patterns = sorted(error_patterns.items(), key=lambda x: x[1], reverse=True)[:5]
+        
+        print("Top 5 misclassification patterns:")
+        for idx, ((true_labels, pred_labels), count) in enumerate(sorted_patterns, 1):
+            true_label_names = [label_names[i] for i in true_labels] if true_labels else ['None']
+            pred_label_names = [label_names[i] for i in pred_labels] if pred_labels else ['None']
+            print(f"  Pattern {idx} (occurred {count} times):")
+            print(f"    True labels: {', '.join(true_label_names)}")
+            print(f"    Predicted labels: {', '.join(pred_label_names)}")
+    
+    print("=" * 80)
+
+
 def main(data_type='Unbalanced'):
     """
     Main function to execute data processing, model training, evaluation, and visualization.
@@ -190,12 +319,16 @@ def main(data_type='Unbalanced'):
     
     # Traditional ML Config
     enable_multinomial_nb = get_config_value(ui_config, 'models.traditional_ml.multinomial_nb.enabled', DEFAULT_MULTINOMIAL_NB_ENABLED)
+    multinomial_nb_use_chain = get_config_value(ui_config, 'models.traditional_ml.multinomial_nb.use_classifier_chain', DEFAULT_USE_CLASSIFIER_CHAIN)
+    
     enable_logistic_regression = get_config_value(ui_config, 'models.traditional_ml.logistic_regression.enabled', DEFAULT_LOGISTIC_REGRESSION_ENABLED)
     logistic_max_iter = get_config_value(ui_config, 'models.traditional_ml.logistic_regression.max_iter', DEFAULT_LOGISTIC_REGRESSION_MAX_ITER)
+    logistic_use_chain = get_config_value(ui_config, 'models.traditional_ml.logistic_regression.use_classifier_chain', DEFAULT_USE_CLASSIFIER_CHAIN)
+    
     enable_random_forest = get_config_value(ui_config, 'models.traditional_ml.random_forest.enabled', DEFAULT_RANDOM_FOREST_ENABLED)
     rf_n_estimators = get_config_value(ui_config, 'models.traditional_ml.random_forest.n_estimators', DEFAULT_RANDOM_FOREST_N_ESTIMATORS)
     rf_random_state = get_config_value(ui_config, 'models.traditional_ml.random_forest.random_state', DEFAULT_RANDOM_FOREST_RANDOM_STATE)
-    use_classifier_chain = get_config_value(ui_config, 'models.traditional_ml.multinomial_nb.use_classifier_chain', DEFAULT_USE_CLASSIFIER_CHAIN)
+    rf_use_chain = get_config_value(ui_config, 'models.traditional_ml.random_forest.use_classifier_chain', DEFAULT_USE_CLASSIFIER_CHAIN)
     
     # MLP Config
     enable_mlp = get_config_value(ui_config, 'models.deep_learning.mlp.enabled', DEFAULT_MLP_ENABLED)
@@ -220,6 +353,10 @@ def main(data_type='Unbalanced'):
     # Cross-Validation Config (global flag)
     run_cross_validation = get_config_value(ui_config, 'models.traditional_ml.run_cross_validation', DEFAULT_RUN_CROSS_VALIDATION)
     
+    # Analysis Config (global flags)
+    enable_error_analysis = get_config_value(ui_config, 'analysis.enable_error_analysis', DEFAULT_ENABLE_ERROR_ANALYSIS)
+    enable_statistical_significance = get_config_value(ui_config, 'analysis.enable_statistical_significance', DEFAULT_ENABLE_STATISTICAL_SIGNIFICANCE)
+    
     # Visualization Config
     viz_enabled = get_config_value(ui_config, 'visualizations.enabled', DEFAULT_VISUALIZATIONS_ENABLED)
     viz_wordclouds = get_config_value(ui_config, 'visualizations.word_clouds', DEFAULT_WORDCLOUDS_ENABLED)
@@ -236,6 +373,8 @@ def main(data_type='Unbalanced'):
     print(f"  MLP: {enable_mlp}")
     print(f"  CNN: {enable_cnn}")
     print(f"  Cross-Validation: {run_cross_validation}")
+    print(f"  Error Analysis: {enable_error_analysis}")
+    print(f"  Statistical Significance: {enable_statistical_significance}")
     print(f"  Visualizations: {viz_enabled}")
     print("="*80 + "\n")
     
@@ -306,7 +445,7 @@ def main(data_type='Unbalanced'):
     
     # Define Classifiers based on feature flags
     if enable_multinomial_nb:
-        if use_classifier_chain:
+        if multinomial_nb_use_chain:
             clf_nb = ClassifierChain(MultinomialNB())
         else:
             clf_nb = MultinomialNB()
@@ -314,7 +453,7 @@ def main(data_type='Unbalanced'):
         print("[INFO] MultinomialNB enabled")
     
     if enable_logistic_regression:
-        if use_classifier_chain:
+        if logistic_use_chain:
             clf_lr = ClassifierChain(LogisticRegression(max_iter=logistic_max_iter))
         else:
             clf_lr = LogisticRegression(max_iter=logistic_max_iter)
@@ -322,7 +461,7 @@ def main(data_type='Unbalanced'):
         print(f"[INFO] LogisticRegression enabled (max_iter={logistic_max_iter})")
     
     if enable_random_forest:
-        if use_classifier_chain:
+        if rf_use_chain:
             clf_rf = ClassifierChain(RandomForestClassifier(n_estimators=rf_n_estimators, random_state=rf_random_state))
         else:
             clf_rf = RandomForestClassifier(n_estimators=rf_n_estimators, random_state=rf_random_state)
@@ -350,7 +489,9 @@ def main(data_type='Unbalanced'):
         print("="*80)
         for clf, model_name in classifiers_to_run:
             print(f"\n===== Evaluating {model_name} on Test Set =====")
-            results = evaluate_classifier(clf, model_name, X_train_tfidf, y_train_np, X_test_tfidf, y_test_np, label_names)
+            results = evaluate_classifier(clf, model_name, X_train_tfidf, y_train_np, X_test_tfidf, y_test_np, label_names, 
+                                        enable_error_analysis=enable_error_analysis, 
+                                        analyze_misclassifications_func=analyze_misclassifications)
             traditional_ml_results.extend(results)
 
     # =============================================================================
@@ -393,7 +534,9 @@ def main(data_type='Unbalanced'):
         )
 
         # Evaluate MLP Model on Test Set
-        mlp_results = evaluate_deep_learning_model(deep_learning_model, X_test_tfidf, y_test_np, 'MLP', label_names)
+        mlp_results = evaluate_deep_learning_model(deep_learning_model, X_test_tfidf, y_test_np, 'MLP', label_names, 
+                                                   enable_error_analysis=enable_error_analysis,
+                                                   analyze_misclassifications_func=analyze_misclassifications)
     else:
         print("\n[INFO] MLP model disabled by feature flag")
 
@@ -443,7 +586,9 @@ def main(data_type='Unbalanced'):
         )
 
         # Evaluate CNN Model on Test Set
-        cnn_results = evaluate_deep_learning_model(cnn_model, X_test_dl, y_test_np, 'CNN', label_names)
+        cnn_results = evaluate_deep_learning_model(cnn_model, X_test_dl, y_test_np, 'CNN', label_names, 
+                                                   enable_error_analysis=enable_error_analysis,
+                                                   analyze_misclassifications_func=analyze_misclassifications)
     else:
         print("\n[INFO] CNN model disabled by feature flag")
 
@@ -534,6 +679,14 @@ if __name__ == "__main__":
         print("\n" + "="*80)
         print("PIPELINE COMPLETED")
         print("="*80)
+    except Exception as pipeline_error:
+        print("\n" + "="*80)
+        print("PIPELINE FAILED WITH ERROR")
+        print("="*80)
+        print(f"Error: {pipeline_error}")
+        import traceback
+        traceback.print_exc()
+        print("="*80)
     finally:
         # Restore stdout and close log file
         sys.stdout = original_stdout
@@ -559,6 +712,14 @@ if __name__ == "__main__":
         print(f"[WARNING] Could not generate HTML report: {e}")
         import traceback
         traceback.print_exc()
+    
+    # Create completion flag file for UI status tracking
+    try:
+        completion_flag = base_output_dir / 'COMPLETE.flag'
+        completion_flag.touch()
+        print(f"[INFO] Run marked as completed: {completion_flag}")
+    except Exception as e:
+        print(f"[WARNING] Could not create completion flag: {e}")
 
 
 # =============================================================================
@@ -1158,7 +1319,7 @@ def cross_validation_score_deep_learning(model_builder, X, y, n_splits=10, epoch
 
     return {'Recall': avg_recall, 'F1': avg_f1}
 
-def evaluate_classifier(clf, clf_name, X_train, y_train, X_test, y_test, label_names):
+def evaluate_classifier(clf, clf_name, X_train, y_train, X_test, y_test, label_names, enable_error_analysis=False):
     """
     Train the classifier, make predictions, and evaluate performance.
 
@@ -1170,6 +1331,7 @@ def evaluate_classifier(clf, clf_name, X_train, y_train, X_test, y_test, label_n
     - X_test (sparse matrix or ndarray): Testing feature matrix.
     - y_test (ndarray): Testing labels.
     - label_names (list): List of label names.
+    - enable_error_analysis (bool): Whether to perform detailed error analysis.
 
     Returns:
     - list of dicts: List containing evaluation metrics for each label.
@@ -1184,6 +1346,16 @@ def evaluate_classifier(clf, clf_name, X_train, y_train, X_test, y_test, label_n
 
     # Calculate Hamming Loss
     hamming_loss_value = hamming_loss(y_test, predictions)
+
+    # Perform detailed error analysis (if enabled)
+    if enable_error_analysis:
+        try:
+            print(f"\n----- Error Analysis for {clf_name} -----")
+            analyze_misclassifications(y_test, predictions, label_names, clf_name)
+        except Exception as e:
+            print(f"[WARNING] Error analysis failed for {clf_name}: {e}")
+    else:
+        print(f"[INFO] Error analysis disabled for {clf_name}")
 
     # Calculate metrics for each label
     metrics = []
@@ -1209,7 +1381,7 @@ def evaluate_classifier(clf, clf_name, X_train, y_train, X_test, y_test, label_n
 
     return metrics
 
-def evaluate_deep_learning_model(model, X_test, y_test, model_name, label_names):
+def evaluate_deep_learning_model(model, X_test, y_test, model_name, label_names, enable_error_analysis=False):
     """
     Evaluate the Deep Learning model on the test set.
 
@@ -1219,6 +1391,7 @@ def evaluate_deep_learning_model(model, X_test, y_test, model_name, label_names)
     - y_test (ndarray): Testing labels.
     - model_name (str): Name of the model for reporting.
     - label_names (list): List of label names.
+    - enable_error_analysis (bool): Whether to perform detailed error analysis.
 
     Returns:
     - list of dicts: List containing evaluation metrics for each label.
@@ -1233,6 +1406,16 @@ def evaluate_deep_learning_model(model, X_test, y_test, model_name, label_names)
 
     # Calculate Hamming Loss
     hamming_loss_value = hamming_loss(y_test, y_pred)
+
+    # Perform detailed error analysis (if enabled)
+    if enable_error_analysis:
+        try:
+            print(f"\n----- Error Analysis for {model_name} -----")
+            analyze_misclassifications(y_test, y_pred, label_names, model_name)
+        except Exception as e:
+            print(f"[WARNING] Error analysis failed for {model_name}: {e}")
+    else:
+        print(f"[INFO] Error analysis disabled for {model_name}")
 
     # Calculate metrics for each label
     metrics = []

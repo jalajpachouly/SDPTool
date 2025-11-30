@@ -14,9 +14,9 @@
         "enabled": true
       },
       "logistic_regression": {
-        "use_classifier_chain": false,
+        "use_classifier_chain": true,
         "max_iter": 10000,
-        "enabled": false
+        "enabled": true
       },
       "multinomial_nb": {
         "use_classifier_chain": false,
@@ -125,5 +125,9 @@
     "sample_random_state": 42
   },
   "problem_type": "multi_label",
-  "run_cross_validation": true
+  "run_cross_validation": true,
+  "analysis": {
+    "enable_error_analysis": true,
+    "enable_statistical_significance": true
+  }
 }

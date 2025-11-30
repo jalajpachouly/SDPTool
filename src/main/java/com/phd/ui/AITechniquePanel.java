@@ -56,6 +56,10 @@ public class AITechniquePanel extends JPanel {
     
     // Global cross-validation control
     private JCheckBox mlGlobalCvBox;
+    
+    // Global analysis controls
+    private JCheckBox mlErrorAnalysisBox;
+    private JCheckBox mlStatSigBox;
 
     private JCheckBox mlLogisticEnabledBox;
     private JCheckBox mlLogisticChainBox;
@@ -262,6 +266,12 @@ public class AITechniquePanel extends JPanel {
         
         mlCvSplitsSpinner = createIntSpinner(10, 2, 20, 1);
         addRow(panel, row++, "CV Splits", mlCvSplitsSpinner);
+        
+        mlErrorAnalysisBox = new JCheckBox("Enable Error Analysis (Misclassification)");
+        addFullRow(panel, row++, mlErrorAnalysisBox);
+        
+        mlStatSigBox = new JCheckBox("Enable Statistical Significance Testing");
+        addFullRow(panel, row++, mlStatSigBox);
         
         return panel;
     }
@@ -910,6 +920,11 @@ public class AITechniquePanel extends JPanel {
         // Load global cross-validation setting
         mlGlobalCvBox.setSelected(multiLabelConfig.optBoolean("run_cross_validation", true));
         mlCvSplitsSpinner.setValue(traditional.optInt("cv_n_splits", 10));
+        
+        // Load global analysis settings (default OFF)
+        JSONObject analysis = ensureObject(multiLabelConfig, "analysis");
+        mlErrorAnalysisBox.setSelected(analysis.optBoolean("enable_error_analysis", false));
+        mlStatSigBox.setSelected(analysis.optBoolean("enable_statistical_significance", false));
 
         mlExperimentNameField.setText(multiLabelConfig.optString("experiment_name", "Multi-Label Experiment"));
         mlRunUnbalancedBox.setSelected(data.optBoolean("run_unbalanced", true));
@@ -1095,6 +1110,11 @@ public class AITechniquePanel extends JPanel {
         multiLabelConfig.put("run_cross_validation", globalCv);
         traditional.put("run_cross_validation", globalCv);
         traditional.put("cv_n_splits", getInt(mlCvSplitsSpinner));
+        
+        // Save global analysis settings
+        JSONObject analysis = ensureObject(multiLabelConfig, "analysis");
+        analysis.put("enable_error_analysis", mlErrorAnalysisBox.isSelected());
+        analysis.put("enable_statistical_significance", mlStatSigBox.isSelected());
 
         JSONObject deepLearning = ensureObject(multiLabelModels, "deep_learning");
         deepLearning.put("enabled", mlDeepLearningEnabledBox.isSelected());

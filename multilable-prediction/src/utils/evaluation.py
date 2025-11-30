@@ -132,7 +132,9 @@ def evaluate_classifier(
     y_train: np.ndarray, 
     X_test, 
     y_test: np.ndarray, 
-    label_names: List[str]
+    label_names: List[str],
+    enable_error_analysis: bool = False,
+    analyze_misclassifications_func: Callable = None
 ) -> List[Dict]:
     """
     Train the classifier, make predictions, and evaluate performance.
@@ -145,6 +147,8 @@ def evaluate_classifier(
     - X_test (sparse matrix or ndarray): Testing feature matrix.
     - y_test (ndarray): Testing labels.
     - label_names (list): List of label names.
+    - enable_error_analysis (bool): Whether to perform detailed error analysis.
+    - analyze_misclassifications_func (callable): Function to call for error analysis.
 
     Returns:
     - list of dicts: List containing evaluation metrics for each label.
@@ -154,6 +158,18 @@ def evaluate_classifier(
     clf.fit(X_train, y_train)
     predictions = clf.predict(X_test)
     hamming_loss_value = hamming_loss(y_test, predictions)
+
+    # Perform detailed error analysis (if enabled)
+    if enable_error_analysis and analyze_misclassifications_func:
+        try:
+            print(f"\n----- Error Analysis for {clf_name} -----")
+            analyze_misclassifications_func(y_test, predictions, label_names, clf_name)
+        except Exception as e:
+            print(f"[WARNING] Error analysis failed for {clf_name}: {e}")
+    elif enable_error_analysis and not analyze_misclassifications_func:
+        print(f"[WARNING] Error analysis enabled but no analysis function provided for {clf_name}")
+    else:
+        print(f"[INFO] Error analysis disabled for {clf_name}")
 
     metrics = []
     n_labels = y_test.shape[1]
@@ -182,7 +198,9 @@ def evaluate_deep_learning_model(
     X_test, 
     y_test: np.ndarray, 
     model_name: str, 
-    label_names: List[str]
+    label_names: List[str],
+    enable_error_analysis: bool = False,
+    analyze_misclassifications_func: Callable = None
 ) -> List[Dict]:
     """
     Evaluate the Deep Learning model on the test set.
@@ -193,6 +211,8 @@ def evaluate_deep_learning_model(
     - y_test (ndarray): Testing labels.
     - model_name (str): Name of the model for reporting.
     - label_names (list): List of label names.
+    - enable_error_analysis (bool): Whether to perform detailed error analysis.
+    - analyze_misclassifications_func (callable): Function to call for error analysis.
 
     Returns:
     - list of dicts: List containing evaluation metrics for each label.
@@ -205,6 +225,18 @@ def evaluate_deep_learning_model(
     y_pred_prob = model.predict(X_test)
     y_pred = (y_pred_prob >= 0.5).astype(int)
     hamming_loss_value = hamming_loss(y_test, y_pred)
+
+    # Perform detailed error analysis (if enabled)
+    if enable_error_analysis and analyze_misclassifications_func:
+        try:
+            print(f"\n----- Error Analysis for {model_name} -----")
+            analyze_misclassifications_func(y_test, y_pred, label_names, model_name)
+        except Exception as e:
+            print(f"[WARNING] Error analysis failed for {model_name}: {e}")
+    elif enable_error_analysis and not analyze_misclassifications_func:
+        print(f"[WARNING] Error analysis enabled but no analysis function provided for {model_name}")
+    else:
+        print(f"[INFO] Error analysis disabled for {model_name}")
 
     metrics = []
     n_labels = y_test.shape[1]
