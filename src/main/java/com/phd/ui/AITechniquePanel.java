@@ -17,10 +17,14 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 public class AITechniquePanel extends JPanel {
-    public static final String DEFAULT_MULTILABEL_SCRIPT_PATH = "multilable-prediction/src/configurable_main.py";
+    public static final String DEFAULT_MULTILABEL_SCRIPT_PATH = "multilable-prediction/src/main.py";
     public static final String DEFAULT_MULTICLASS_SCRIPT_PATH = "software-change-type-prediction-main/src/configurable_main.py";
+    public static final String MULTILABEL_LOG_PATH = "multilable-prediction/src/output/log.txt";
+    public static final String MULTILABEL_REPORT_PATH = "multilable-prediction/src/output/report.html";
     private static final String PROBLEM_MULTI_LABEL = "multi_label";
     private static final String PROBLEM_MULTI_CLASS = "multi_class";
 
@@ -679,20 +683,36 @@ public class AITechniquePanel extends JPanel {
 
             private String executePythonScript() throws IOException, InterruptedException {
                 Path scriptPath = Paths.get(getActiveScriptPath()).toAbsolutePath();
-                String configPath = isMultiClassSelected() ? 
-                    ConfigManager.MULTICLASS_CONFIG_PATH : 
-                    ConfigManager.MULTILABEL_CONFIG_PATH;
-                Path configPathObj = Paths.get(configPath).toAbsolutePath();
+                Path scriptDir = scriptPath.getParent();
+                Path runDirectory = scriptDir;
+
+                Path configPathObj = null;
+                if (isMultiClassSelected()) {
+                    configPathObj = Paths.get(ConfigManager.MULTICLASS_CONFIG_PATH).toAbsolutePath();
+                }
+
+                if (!isMultiClassSelected() && scriptDir != null && scriptDir.getParent() != null) {
+                    runDirectory = scriptDir.getParent(); // Run from project root so main.py can find configs/*
+                }
 
                 if (!Files.exists(scriptPath)) {
-                    throw new IOException("Unable to locate configurable_main.py at " + scriptPath);
+                    throw new IOException("Unable to locate Python script at " + scriptPath);
                 }
-                if (!Files.exists(configPathObj)) {
+                if (configPathObj != null && !Files.exists(configPathObj)) {
                     throw new IOException("Configuration file not found at " + configPathObj);
                 }
 
-                ProcessBuilder builder = new ProcessBuilder("python", scriptPath.toString(), configPathObj.toString());
-                builder.directory(scriptPath.getParent().toFile());
+                List<String> command = new ArrayList<>();
+                command.add("python");
+                command.add(scriptPath.toString());
+                if (configPathObj != null) {
+                    command.add(configPathObj.toString());
+                }
+
+                ProcessBuilder builder = new ProcessBuilder(command);
+                if (runDirectory != null) {
+                    builder.directory(runDirectory.toFile());
+                }
                 builder.redirectErrorStream(true);
 
                 Process process = builder.start();
@@ -705,7 +725,52 @@ public class AITechniquePanel extends JPanel {
                     }
                 }
                 exitCode = process.waitFor();
+
+                if (exitCode == 0 && errorMessage == null && !isMultiClassSelected()) {
+                    String reportOutput = generateLogReport(scriptPath);
+                    if (reportOutput != null && !reportOutput.isBlank()) {
+                        outputBuilder.append(reportOutput);
+                    }
+                }
                 return outputBuilder.toString();
+            }
+
+            private String generateLogReport(Path scriptPath) throws IOException, InterruptedException {
+                Path generatorPath = scriptPath.getParent().resolve("utils").resolve("log_report_generator.py").toAbsolutePath();
+                Path logPath = Paths.get(MULTILABEL_LOG_PATH).toAbsolutePath();
+                Path reportPath = Paths.get(MULTILABEL_REPORT_PATH).toAbsolutePath();
+
+                if (!Files.exists(generatorPath)) {
+                    throw new IOException("Unable to locate log_report_generator.py at " + generatorPath);
+                }
+                if (!Files.exists(logPath)) {
+                    throw new IOException("Log file not found at " + logPath);
+                }
+                Files.createDirectories(reportPath.getParent());
+
+                List<String> reportCommand = new ArrayList<>();
+                reportCommand.add("python");
+                reportCommand.add(generatorPath.toString());
+                reportCommand.add(logPath.toString());
+                reportCommand.add(reportPath.toString());
+
+                ProcessBuilder reportBuilder = new ProcessBuilder(reportCommand);
+                reportBuilder.directory(generatorPath.getParent().toFile());
+                reportBuilder.redirectErrorStream(true);
+
+                Process reportProcess = reportBuilder.start();
+                StringBuilder reportOutput = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(reportProcess.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        reportOutput.append(line).append(System.lineSeparator());
+                    }
+                }
+                int reportExit = reportProcess.waitFor();
+                if (reportExit != 0) {
+                    throw new IOException("Report generator exited with code " + reportExit + ". Output: " + reportOutput);
+                }
+                return reportOutput.toString();
             }
 
             @Override
@@ -725,7 +790,7 @@ public class AITechniquePanel extends JPanel {
                 if (errorMessage != null) {
                     JOptionPane.showMessageDialog(
                             AITechniquePanel.this,
-                            "Unable to run configurable_main.py: " + errorMessage,
+                            "Unable to run script (" + getActiveScriptPath() + "): " + errorMessage,
                             "Run Failed",
                             JOptionPane.ERROR_MESSAGE
                     );
