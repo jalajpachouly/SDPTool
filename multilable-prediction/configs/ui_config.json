@@ -51,10 +51,10 @@
         "cv_batch_size": 16,
         "batch_size": 16,
         "cv_n_splits": 10,
-        "run_cross_validation": false,
+        "run_cross_validation": true,
         "validation_split": 0.2,
         "epochs": 100,
-        "enabled": false,
+        "enabled": true,
         "early_stopping_patience": 5,
         "cv_epochs": 100,
         "architecture": {
@@ -70,8 +70,8 @@
         "conv_filters": 128,
         "embedding_dim": 100,
         "cv_n_splits": 10,
-        "run_cross_validation": false,
-        "enabled": false,
+        "run_cross_validation": true,
+        "enabled": true,
         "early_stopping_patience": 10,
         "max_len": 100,
         "max_words": 5000,
@@ -82,7 +82,7 @@
         "conv_kernel_size": 5,
         "cv_epochs": 10
       },
-      "enabled": false
+      "enabled": true
     }
   },
   "experiment_name": "T8",
@@ -116,7 +116,7 @@
   "output_directory": "output/ui_generated",
   "data": {
     "dataset_path": "data/dataset.csv",
-    "run_unbalanced": false,
+    "run_unbalanced": true,
     "sample_size": 123,
     "test_size": 0.2,
     "run_balanced": true,

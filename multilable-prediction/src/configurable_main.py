@@ -1218,7 +1218,7 @@ def main(
         charts.extend(chart_names_for_metadata)
         write_run_metadata(run_folder, run_name, timestamp, [data_type], models_run, config_path, hyperparameters={data_type: model_hyperparams}, charts=charts)
         # Mark run as complete
-        with open(run_folder / 'COMPLETE.flag', 'w') as flagf:
+        with open(run_folder / 'COMPLETE.flag', 'w', encoding='utf-8') as flagf:
             flagf.write('complete')
         
         log_progress(100, "Experiment complete!")
@@ -1566,7 +1566,7 @@ if __name__ == "__main__":
     
     write_run_metadata(run_folder, run_name, timestamp, data_types, combined_models, config_file, hyperparameters=hyperparams_by_type, charts=chart_names_for_metadata)
     # Mark run as complete
-    with open(run_folder / 'COMPLETE.flag', 'w') as flagf:
+    with open(run_folder / 'COMPLETE.flag', 'w', encoding='utf-8') as flagf:
         flagf.write('complete')
     
     print(f"\n{'='*60}")
