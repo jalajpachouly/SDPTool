@@ -2587,8 +2587,7 @@ class LogReportGenerator:
             <p>Generated: {self.report_data['metadata'].get('generated_at', 'N/A')}</p>
             <p>Log File: {Path(self.report_data['metadata']['log_file']).name}</p>
             <p style="margin-top: 15px; opacity: 0.7;">
-                This report was automatically generated from training logs.<br>
-                For questions or issues, please contact the ML team.
+                This report was automatically generated from training logs.
             </p>
         </footer>
         """
