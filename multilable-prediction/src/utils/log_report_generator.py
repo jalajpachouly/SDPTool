@@ -272,7 +272,8 @@ class LogReportGenerator:
         # Pattern to find error analysis sections
         # Matches: "----- Error Analysis for ModelName -----" followed by the detailed analysis content
         # Content is between "Detailed Misclassification Analysis" header and "Hamming Loss" line
-        error_pattern = r'----- Error Analysis for (\w+) -----\s*\nDetailed Misclassification Analysis for \w+:\s*\n={80,}\s*\n(.*?)(?=\n={80,}\s*\nHamming Loss for \w+:)'
+        # Handles both "Hamming Loss for ModelName:" and "Hamming Loss for ModelName Model:"
+        error_pattern = r'----- Error Analysis for (\w+) -----\s*\nDetailed Misclassification Analysis for \w+:\s*\n={80,}\s*\n(.*?)(?=\n={80,}\s*\nHamming Loss for \w+(?: Model)?:)'
         
         for error_match in re.finditer(error_pattern, section, re.DOTALL):
             model_name = error_match.group(1)
