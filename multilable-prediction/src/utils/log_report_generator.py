@@ -201,12 +201,12 @@ class LogReportGenerator:
     def _extract_deep_learning_results(self, section: str, key: str):
         """Extract deep learning model results (MLP and CNN)."""
         # MLP results
-        mlp_pattern = r"Deep Learning Cross-validation results:\nRecall: ([\d.]+)\nF1-score: ([\d.]+)"
+        mlp_pattern = r"MLP Cross-validation results:\s*\nRecall: ([\d.]+)\s*\nF1-score: ([\d.]+)"
         mlp_match = re.search(mlp_pattern, section)
         if mlp_match:
             mlp_folds = []
             fold_pattern = r'Fold (\d+): <lambda> Recall = ([\d.]+), F1-Score = ([\d.]+)'
-            mlp_section = re.search(r'===== Training and Evaluating Deep Learning Model via Cross-Validation =====(.*?)(?=\n=====)', section, re.DOTALL)
+            mlp_section = re.search(r'===== Training and Evaluating MLP Model via Cross-Validation =====(.*?)(?=MLP Cross-validation results:)', section, re.DOTALL)
             if mlp_section:
                 for fold_match in re.finditer(fold_pattern, mlp_section.group(1)):
                     mlp_folds.append({
@@ -220,14 +220,20 @@ class LogReportGenerator:
                 'cv_f1': float(mlp_match.group(2)),
                 'folds': mlp_folds
             }
+            
+            # Extract MLP test set hamming loss
+            mlp_hamming_pattern = r"Hamming Loss for MLP Model: ([\d.]+)"
+            mlp_hamming_match = re.search(mlp_hamming_pattern, section)
+            if mlp_hamming_match:
+                self.report_data[key]['deep_learning']['MLP']['hamming_loss'] = float(mlp_hamming_match.group(1))
         
         # CNN results
-        cnn_pattern = r"CNN Cross-validation results:\nRecall: ([\d.]+)\nF1-score: ([\d.]+)"
+        cnn_pattern = r"CNN Cross-validation results:\s*\nRecall: ([\d.]+)\s*\nF1-score: ([\d.]+)"
         cnn_match = re.search(cnn_pattern, section)
         if cnn_match:
             cnn_folds = []
             fold_pattern = r'Fold (\d+): <lambda> Recall = ([\d.]+), F1-Score = ([\d.]+)'
-            cnn_section = re.search(r'===== Training and Evaluating CNN Model via Cross-Validation =====(.*?)(?=\n=====)', section, re.DOTALL)
+            cnn_section = re.search(r'===== Training and Evaluating CNN Model via Cross-Validation =====(.*?)(?=CNN Cross-validation results:)', section, re.DOTALL)
             if cnn_section:
                 for fold_match in re.finditer(fold_pattern, cnn_section.group(1)):
                     cnn_folds.append({
@@ -241,6 +247,12 @@ class LogReportGenerator:
                 'cv_f1': float(cnn_match.group(2)),
                 'folds': cnn_folds
             }
+            
+            # Extract CNN test set hamming loss
+            cnn_hamming_pattern = r"Hamming Loss for CNN Model: ([\d.]+)"
+            cnn_hamming_match = re.search(cnn_hamming_pattern, section)
+            if cnn_hamming_match:
+                self.report_data[key]['deep_learning']['CNN']['hamming_loss'] = float(cnn_hamming_match.group(1))
         
         # Extract CNN training epochs
         epoch_pattern = r'Epoch \d+/\d+.*?val_accuracy: ([\d.]+) - val_loss: ([\d.]+)'
@@ -1747,8 +1759,12 @@ class LogReportGenerator:
             if 'error_analysis' in self.report_data[data_type] and self.report_data[data_type]['error_analysis']:
                 html += f'<h3>9.{1 if data_type == "unbalanced" else 2}. {data_type.capitalize()} Data Error Analysis</h3>'
                 
+                model_index = 1
                 for model_name, error_data in self.report_data[data_type]['error_analysis'].items():
-                    html += f'<h4>{model_name} Model</h4>'
+                    # Use numbered subsections for better visibility
+                    section_num = f'9.{1 if data_type == "unbalanced" else 2}.{model_index}'
+                    html += f'<h4 style="color: #667eea; font-size: 1.5em; margin-top: 30px; padding: 10px; background: #f0f4ff; border-left: 5px solid #667eea;">{section_num}. {model_name} Model</h4>'
+                    model_index += 1
                     
                     # Overall Statistics
                     if 'overall' in error_data:
@@ -2191,6 +2207,13 @@ class LogReportGenerator:
                         all_models[key]['unbalanced_hamming'] = data.get('hamming_loss', 0)
                         break
         
+        # Add DL hamming loss from deep_learning section
+        for dl_model in ['MLP', 'CNN']:
+            if dl_model in self.report_data.get('unbalanced', {}).get('deep_learning', {}):
+                dl_data = self.report_data['unbalanced']['deep_learning'][dl_model]
+                if 'hamming_loss' in dl_data and dl_model in all_models:
+                    all_models[dl_model]['unbalanced_hamming'] = dl_data['hamming_loss']
+        
         if 'test_results' in self.report_data.get('balanced', {}):
             for model, data in self.report_data['balanced']['test_results'].items():
                 model_name = model.replace('_', '')
@@ -2198,6 +2221,13 @@ class LogReportGenerator:
                     if key.lower().replace(' ', '') == model_name.lower():
                         all_models[key]['balanced_hamming'] = data.get('hamming_loss', 0)
                         break
+        
+        # Add DL hamming loss from deep_learning section
+        for dl_model in ['MLP', 'CNN']:
+            if dl_model in self.report_data.get('balanced', {}).get('deep_learning', {}):
+                dl_data = self.report_data['balanced']['deep_learning'][dl_model]
+                if 'hamming_loss' in dl_data and dl_model in all_models:
+                    all_models[dl_model]['balanced_hamming'] = dl_data['hamming_loss']
         
         # Calculate improvements
         for model in all_models:
