@@ -1,0 +1,99 @@
+@startuml Database Connection Flow - Before and After Fix
+
+!define FAIL_COLOR #FFCCCC
+!define SUCCESS_COLOR #CCFFCC
+!define WARNING_COLOR #FFFFCC
+
+title Database Connection Flow - Before vs After Fix
+
+|#FAIL_COLOR|Before Fix (Broken)|
+start
+:User sets DB path in UI\ne.g., "D:\\MyData\\project.db";
+note right
+  Configuration stored but
+  **NEVER USED** ❌
+end note
+
+:FetchData calls\nConnect.getConnection(dbLocation);
+
+:**IGNORES parameter**\nHardcoded path used instead;
+note right
+  String url = 
+  "jdbc:sqlite:C:/DB/SDP1.db";
+  
+  Parameter ignored! ❌
+end note
+
+:Check if C:\\DB exists?;
+if (Directory exists?) then (yes)
+  :SQLite creates empty\nC:\\DB\\SDP1.db;
+else (no)
+  :SQLException:\n"unable to open database";
+  stop
+endif
+
+:Connection returned;
+
+:Try INSERT INTO ISSUE;
+note right
+  Tables don't exist! ❌
+end note
+
+:SQLException:\n"no such table: ISSUE";
+
+stop
+
+|#SUCCESS_COLOR|After Fix (Working)|
+start
+:User sets DB path in UI\ne.g., "D:\\MyData\\project.db";
+note right
+  Configuration properly
+  passed to connection ✅
+end note
+
+:FetchData calls\nConnect.getConnection(dbLocation);
+
+:**USES parameter**\nString url = "jdbc:sqlite:" + dbLocation;
+note right
+  Configuration 
+  respected! ✅
+end note
+
+:Check if directory exists?;
+if (Directory exists?) then (no)
+  :**Auto-create directory**\nparentDir.mkdirs();
+  note right
+    Creates D:\\MyData\\ ✅
+  end note
+endif
+
+:SQLite connects/creates\nD:\\MyData\\project.db;
+note right
+  Uses configured path ✅
+end note
+
+:initializeDatabaseSchema(conn);
+
+:Check if ISSUE table exists?;
+if (Table exists?) then (no)
+  :Create all 14 tables:\n- ISSUE\n- LABEL\n- COMMENTS\n- CODE\n- PULL_RQ\n- etc.;
+  note right
+    Auto-initialization ✅
+  end note
+else (yes)
+  :Schema already exists;
+endif
+
+:Connection returned;
+
+:INSERT INTO ISSUE;
+note right
+  Tables exist ✅
+  Insert succeeds ✅
+end note
+
+:Data saved successfully;
+
+stop
+
+@enduml

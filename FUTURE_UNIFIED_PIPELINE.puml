@@ -1,0 +1,55 @@
+@startuml Unified AI Pipeline Architecture
+
+skinparam defaultFontSize 11
+skinparam rectangle {
+    BackgroundColor<<Input>> #E3F2FD
+    BackgroundColor<<Processing>> #E8F5E9
+    BackgroundColor<<ML>> #FFE0B2
+    BackgroundColor<<Output>> #FFF9C4
+    BorderColor #424242
+    FontSize 10
+}
+skinparam ArrowThickness 2
+skinparam padding 2
+
+title Unified Hybrid AI Pipeline for Automated Software Defect Triage
+
+rectangle "Issue Input\n(Text + Metadata)" as input <<Input>>
+
+rectangle "Preprocessing\n& Feature\nExtraction" as preprocess <<Processing>>
+
+rectangle "Unified AI Model" as model <<ML>> {
+    rectangle "Shared\nRepresentation" as shared
+    rectangle "Multilabel\nHead" as branch1
+    rectangle "Multiclass\nHead" as branch2
+}
+
+rectangle "Automated Triage" as output <<Output>> {
+    rectangle "Defect Nature\n(Bug, Doc, etc.)" as nature
+    rectangle "Target Module\n(Auth, UI, etc.)" as module
+}
+
+rectangle "Auto-Assignment\n& Routing" as actions <<Output>>
+
+' Connections
+input -down-> preprocess : Text\nProcessing
+preprocess -down-> shared : Feature\nVectors
+shared -down-> branch1 : Nature
+shared -down-> branch2 : Module
+branch1 -down-> nature
+branch2 -down-> module
+nature -down-> output
+module -down-> output
+output -down-> actions : Confidence\nScores
+
+note right of model
+  Single model with shared
+  learned representations
+end note
+
+note bottom of output
+  Both WHAT and WHERE
+  predicted simultaneously
+end note
+
+@enduml

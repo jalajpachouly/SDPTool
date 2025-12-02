@@ -1,0 +1,187 @@
+@startuml Property File Configuration Flow
+
+!define PRIMARY_COLOR #4A90E2
+!define SUCCESS_COLOR #7ED321
+!define WARNING_COLOR #F5A623
+!define INFO_COLOR #50E3C2
+
+title Database Property File Configuration System
+
+|Application Startup|
+start
+:Load DatabaseProperties class;
+note right
+  Static initialization
+end note
+
+:Check for database.properties\nin working directory;
+
+if (File exists in\nworking directory?) then (yes)
+  #SUCCESS_COLOR:Load from working directory;
+  note right
+    User override location
+  end note
+else (no)
+  #INFO_COLOR:Load from classpath\n(src/main/resources);
+  note right
+    Default configuration
+  end note
+  
+  :Copy to working directory;
+  note right
+    Future edits will modify this copy
+    Original in classpath never changed
+  end note
+endif
+
+:Parse properties:
+**database.location=./data/sdp.db**
+database.auto.create=true
+database.auto.init.schema=true;
+
+:Convert relative path to absolute;
+note right
+  ./data/sdp.db →
+  C:\wspace\SDPTool\data\sdp.db
+end note
+
+|UI - Configuration Panel|
+
+:ConfigurationPanel constructor called;
+
+:loadDefaultDatabaseLocation();
+
+:Read from DatabaseProperties.getDatabaseLocation();
+
+#SUCCESS_COLOR:Display in Database File field;
+note right
+  Shows: C:\wspace\SDPTool\data\sdp.db
+  Tooltip: "Default: ./data/sdp.db"
+end note
+
+:User sees UI;
+
+|User Interaction|
+
+if (User action?) then (Click Browse)
+  :Open JFileChooser;
+  note right
+    Opens at current database directory
+    Allow Save mode (create new file)
+  end note
+  
+  :User selects location;
+  note right
+    e.g., D:\Research\project.db
+  end note
+  
+  :Update dbNameField text;
+  
+else (Manual Edit)
+  :User types in field;
+  note right
+    Can enter relative or absolute path
+  end note
+else (No Change)
+  :Keep default value;
+endif
+
+:User clicks "Save Configuration";
+
+|Configuration Save|
+
+:setConfiguration() called;
+
+:Get new location from UI field;
+note right
+  newDbLocation = dbNameField.getText()
+end note
+
+:Get current properties location;
+note right
+  currentLocation = 
+    DatabaseProperties.getDatabaseLocation()
+end note
+
+if (Location changed?) then (yes)
+  #WARNING_COLOR:DatabaseProperties.setDatabaseLocation(newDbLocation);
+  
+  :Open database.properties in working directory;
+  
+  :Update property:
+  **database.location=<new_location>**;
+  
+  :Save file with timestamp comment;
+  
+  #SUCCESS_COLOR:Show confirmation dialog;
+  note right
+    "Database location updated successfully!
+    New location: D:\Research\project.db
+    Saved to: C:\wspace\SDPTool\database.properties"
+  end note
+else (no)
+  :No property file update needed;
+endif
+
+:Save to Configuration object;
+note right
+  Also saved to database
+  CONFIGURATION table
+end note
+
+|Data Fetching|
+
+:User clicks "Populate SDP Dataset";
+
+:FetchData.getData() called;
+
+:Connect.getConnection(dbLocation) called;
+
+if (dbLocation provided?) then (yes)
+  :Use provided location;
+else (no)
+  #INFO_COLOR:Use DatabaseProperties.getDatabaseLocation();
+  note right
+    Falls back to property file value
+  end note
+endif
+
+:Create parent directory if needed;
+
+:Connect to SQLite;
+
+if (Auto-init schema enabled?) then (yes)
+  :Check if tables exist;
+  
+  if (Tables exist?) then (no)
+    #SUCCESS_COLOR:Create all 14 tables;
+  else (yes)
+    :Use existing schema;
+  endif
+endif
+
+:Return connection;
+
+:Fetch and insert GitHub data;
+
+stop
+
+|Next Application Launch|
+start
+:DatabaseProperties loads;
+
+#SUCCESS_COLOR:Reads from working directory:
+**database.location=D:\Research\project.db**;
+note right
+  User's override persisted!
+end note
+
+:UI shows: D:\Research\project.db;
+note right
+  User's custom location
+  becomes the new default
+end note
+
+stop
+
+@enduml

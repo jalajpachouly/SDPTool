@@ -1,6 +1,7 @@
 package com.phd.ui;
 
 import com.phd.config.Configuration;
+import com.phd.config.DatabaseProperties;
 import com.phd.db.DBManager;
 import com.phd.issue.FetchData;
 
@@ -43,6 +44,10 @@ public class ConfigurationPanel {
         base.add(buildActionsPanel(), BorderLayout.SOUTH);
 
         tp.add("Configuration", base);
+        
+        // Load default database location from properties file
+        loadDefaultDatabaseLocation();
+        
         createActionListener(loadConfiguration, saveConfiguration, createDataSet, browseDatabaseButton);
 
     }
@@ -181,11 +186,36 @@ public class ConfigurationPanel {
             @Override
             public void actionPerformed(ActionEvent e) {
                 JFileChooser fileChooser = new JFileChooser();
-                fileChooser.setDialogTitle("Select Database File");
-                fileChooser.setCurrentDirectory(new File("C:\\SQLLITE\\DB"));
-                int result = fileChooser.showOpenDialog(null);
+                fileChooser.setDialogTitle("Select or Create Database File");
+                
+                // Set initial directory based on current database location
+                String currentDbLocation = dbNameField.getText().trim();
+                File currentDir;
+                if (!currentDbLocation.isEmpty()) {
+                    File currentFile = new File(currentDbLocation);
+                    currentDir = currentFile.getParentFile();
+                    if (currentDir != null && currentDir.exists()) {
+                        fileChooser.setCurrentDirectory(currentDir);
+                        fileChooser.setSelectedFile(currentFile);
+                    }
+                } else {
+                    // Use project directory as default
+                    currentDir = new File(System.getProperty("user.dir"));
+                    fileChooser.setCurrentDirectory(currentDir);
+                }
+                
+                // Allow saving to create new database file
+                fileChooser.setDialogType(JFileChooser.SAVE_DIALOG);
+                
+                int result = fileChooser.showSaveDialog(null);
                 if (result == JFileChooser.APPROVE_OPTION) {
                     File selectedFile = fileChooser.getSelectedFile();
+                    // Ensure .db extension
+                    String path = selectedFile.getAbsolutePath();
+                    if (!path.toLowerCase().endsWith(".db")) {
+                        path += ".db";
+                        selectedFile = new File(path);
+                    }
                     dbNameField.setText(selectedFile.getAbsolutePath());
                 }
             }
@@ -195,18 +225,56 @@ public class ConfigurationPanel {
 
     private static void updateUIModel(Configuration config) {
         accessTokenField.setText(config.getAccessToken());
-        dbNameField.setText(config.getDbLocation());
+        // Load from properties if config doesn't have a value
+        if (config.getDbLocation() == null || config.getDbLocation().trim().isEmpty()) {
+            dbNameField.setText(DatabaseProperties.getDatabaseLocation());
+        } else {
+            dbNameField.setText(config.getDbLocation());
+        }
         repoField.setText(config.getRepoName());
         sslUsage.setSelected(config.isUseHttps());
         certUsage.setSelected(config.isValidateServeCertificate());
         recordFromField.setText(Integer.toString(config.getRecordFrom()));
         recordToField.setText(Integer.toString(config.getRecordTo()));
-
+    }
+    
+    /**
+     * Load default database location from properties file into UI
+     */
+    private static void loadDefaultDatabaseLocation() {
+        String defaultLocation = DatabaseProperties.getDatabaseLocation();
+        dbNameField.setText(defaultLocation);
+        dbNameField.setToolTipText("Default from database.properties: " + DatabaseProperties.getRawDatabaseLocation());
+        System.out.println("Loaded default database location: " + defaultLocation);
     }
 
     private static void setConfiguration() {
         Configuration.getConfig().setAccessToken(accessTokenField.getText().trim());
-        Configuration.getConfig().setDbLocation(dbNameField.getText().trim());
+        
+        // Get database location from UI
+        String newDbLocation = dbNameField.getText().trim();
+        Configuration.getConfig().setDbLocation(newDbLocation);
+        
+        // If user changed the database location, save it to properties file
+        String currentPropertiesLocation = DatabaseProperties.getDatabaseLocation();
+        if (!newDbLocation.isEmpty() && !newDbLocation.equals(currentPropertiesLocation)) {
+            if (DatabaseProperties.setDatabaseLocation(newDbLocation)) {
+                System.out.println("User override: Updated database location in properties file to: " + newDbLocation);
+                JOptionPane.showMessageDialog(null, 
+                    "Database location updated successfully!\n" +
+                    "New location: " + newDbLocation + "\n" +
+                    "Saved to: " + DatabaseProperties.getPropertiesFilePath(),
+                    "Configuration Saved", 
+                    JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                System.err.println("Failed to save database location to properties file");
+                JOptionPane.showMessageDialog(null, 
+                    "Warning: Database location set for this session but not saved to properties file.",
+                    "Save Warning", 
+                    JOptionPane.WARNING_MESSAGE);
+            }
+        }
+        
         Configuration.getConfig().setRepoName(repoField.getText().trim());
         Configuration.getConfig().setUseHttps(sslUsage.isSelected());
         Configuration.getConfig().setValidateServeCertificate(certUsage.isSelected());
