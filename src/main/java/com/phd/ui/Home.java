@@ -56,6 +56,10 @@ public class Home extends Component {
         getCongigurationPanel(tp, config);
         getPreProcessingPanel(tp,config);
         
+        // Label Filtering Panel for data quality
+        LabelFilterPanel labelFilterPanel = new LabelFilterPanel();
+        tp.add("Label Filtering", labelFilterPanel);
+        
         // Create panels - they will use ConfigManager's shared config objects
         FeatureSamplePanel featureSamplePanel = new FeatureSamplePanel();
         VisualizationPanel visualizationPanel = new VisualizationPanel();

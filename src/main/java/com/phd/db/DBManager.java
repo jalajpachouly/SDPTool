@@ -1,6 +1,7 @@
 package com.phd.db;
 
 import com.phd.config.Configuration;
+import com.phd.config.LabelFilterConfig;
 import com.phd.data.CSVHelper;
 import com.phd.data.validation.ValidateFinalRecord;
 import com.phd.domain.CSVModel;
@@ -63,11 +64,59 @@ public class DBManager {
         try {
             PreparedStatement pstmt = conn.prepareStatement(sql);
             Collection<GHLabel> labels = issue.getLabels();
+            
+            // Track valid labels for filtering
+            int validLabelCount = 0;
+            List<GHLabel> validLabels = new ArrayList<>();
+            
+            // First pass: filter labels based on configuration
             for (GHLabel label : labels) {
+                boolean isValid = true;
+                
+                // Apply color filtering
+                if (LabelFilterConfig.isColorFilteringEnabled()) {
+                    if (!LabelFilterConfig.isValidLabelColor(label.getColor())) {
+                        System.out.println("  [FILTERED] Label '" + label.getName() + "' excluded: invalid color (" + label.getColor() + ")");
+                        isValid = false;
+                    }
+                }
+                
+                // Apply incomplete/untriaged label filtering
+                if (isValid && LabelFilterConfig.isIncompleteFilteringEnabled()) {
+                    if (LabelFilterConfig.isExcludedLabel(label.getName())) {
+                        System.out.println("  [FILTERED] Label '" + label.getName() + "' excluded: incomplete/untriaged keyword");
+                        isValid = false;
+                    }
+                }
+                
+                if (isValid) {
+                    validLabels.add(label);
+                    validLabelCount++;
+                }
+            }
+            
+            // Check if issue meets label count requirements
+            if (validLabelCount < LabelFilterConfig.getMinLabelCount()) {
+                System.out.println("  [FILTERED] Issue #" + issue.getNumber() + " excluded: insufficient valid labels (" + validLabelCount + " < " + LabelFilterConfig.getMinLabelCount() + ")");
+                return;
+            }
+            
+            // Check single-label constraint
+            if (LabelFilterConfig.isSingleLabelEnforced() && validLabelCount > LabelFilterConfig.getMaxLabelCountForSingleClass()) {
+                System.out.println("  [FILTERED] Issue #" + issue.getNumber() + " excluded: too many labels for single-class (" + validLabelCount + " > " + LabelFilterConfig.getMaxLabelCountForSingleClass() + ")");
+                return;
+            }
+            
+            // Insert valid labels
+            for (GHLabel label : validLabels) {
                 pstmt.setInt(1, issue.getNumber());
                 pstmt.setString(2, label.getName());
                 pstmt.setString(3, label.getColor());
                 pstmt.executeUpdate();
+            }
+            
+            if (validLabelCount > 0) {
+                System.out.println("  [SUCCESS] Inserted " + validLabelCount + " valid label(s) for issue #" + issue.getNumber());
             }
 
         } catch (SQLException e) {
@@ -949,6 +998,180 @@ public class DBManager {
             }
             return issueList;
         }
+    }
+    
+    /**
+     * Get issues that meet label filtering criteria.
+     * Only includes issues with valid labels based on LabelFilterConfig.
+     * 
+     * @return List of validated issues
+     */
+    public static List<Issue> getFilteredIssues() {
+        Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
+        List<Issue> issueList = new ArrayList<Issue>();
+        
+        // Build query with label filtering
+        String query = "SELECT DISTINCT i.ISSUE_ID, i.TITLE, i.PROCESSED_TITLES, i.PROCESSED_BODY, " +
+                      "i.OPEN_DATE, i.CLOSE_DATE, i.TIME_TAKEN " +
+                      "FROM ISSUE i " +
+                      "INNER JOIN LABEL l ON i.ISSUE_ID = l.ISSUE_ID " +
+                      "WHERE " + LabelFilterConfig.getColorFilterSQL() + 
+                      " AND " + LabelFilterConfig.getExcludedLabelFilterSQL();
+        
+        // Add label count constraints
+        if (LabelFilterConfig.isSingleLabelEnforced()) {
+            query += " AND i.ISSUE_ID IN (" +
+                    "SELECT ISSUE_ID FROM LABEL " +
+                    "WHERE " + LabelFilterConfig.getColorFilterSQL() +
+                    " AND " + LabelFilterConfig.getExcludedLabelFilterSQL() +
+                    " GROUP BY ISSUE_ID " +
+                    "HAVING COUNT(*) <= " + LabelFilterConfig.getMaxLabelCountForSingleClass() +
+                    ")";
+        }
+        
+        if (LabelFilterConfig.getMinLabelCount() > 1) {
+            query += " AND i.ISSUE_ID IN (" +
+                    "SELECT ISSUE_ID FROM LABEL " +
+                    "WHERE " + LabelFilterConfig.getColorFilterSQL() +
+                    " AND " + LabelFilterConfig.getExcludedLabelFilterSQL() +
+                    " GROUP BY ISSUE_ID " +
+                    "HAVING COUNT(*) >= " + LabelFilterConfig.getMinLabelCount() +
+                    ")";
+        }
+        
+        query += " ORDER BY i.ISSUE_ID";
+        
+        Statement stmt = null;
+        ResultSet rs = null;
+        System.out.println("Filtered Issues Query: " + query);
+        
+        try {
+            stmt = con.createStatement();
+            rs = stmt.executeQuery(query);
+
+            while (rs.next()) {
+                Issue issue = new Issue();
+                issue.setId(rs.getInt("ISSUE_ID"));
+                issue.setProcessedTitle(rs.getString("PROCESSED_TITLES"));
+                issue.setTitle(rs.getString("TITLE"));
+                issue.setProcessedBody(rs.getString("PROCESSED_BODY"));
+                issue.setCreatedAt(rs.getString("OPEN_DATE"));
+                issue.setClosedAt(rs.getString("CLOSE_DATE"));
+                issueList.add(issue);
+            }
+            
+            System.out.println("Retrieved " + issueList.size() + " filtered issues");
+            
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        } finally {
+            try {
+                rs.close();
+                stmt.close();
+                com.phd.db.Connect.closeConnection(con);
+            } catch (SQLException throwables) {
+                throwables.printStackTrace();
+            }
+        }
+        return issueList;
+    }
+    
+    /**
+     * Get label statistics for analysis and validation.
+     * Shows distribution of labels by color and helps identify filtering impact.
+     * 
+     * @return Map with statistics
+     */
+    public static Map<String, Object> getLabelStatistics() {
+        Connection con = com.phd.db.Connect.getConnection(Configuration.getConfig().getDbLocation());
+        Map<String, Object> stats = new HashMap<>();
+        
+        try {
+            // Total labels
+            Statement stmt = con.createStatement();
+            ResultSet rs = stmt.executeQuery("SELECT COUNT(*) as total FROM LABEL");
+            if (rs.next()) {
+                stats.put("total_labels", rs.getInt("total"));
+            }
+            rs.close();
+            
+            // Labels by color
+            rs = stmt.executeQuery(
+                "SELECT COLOR, COUNT(*) as count FROM LABEL GROUP BY COLOR ORDER BY count DESC");
+            Map<String, Integer> colorDistribution = new HashMap<>();
+            while (rs.next()) {
+                String color = rs.getString("COLOR");
+                int count = rs.getInt("count");
+                colorDistribution.put(color, count);
+            }
+            stats.put("color_distribution", colorDistribution);
+            rs.close();
+            
+            // Valid vs invalid labels
+            rs = stmt.executeQuery(
+                "SELECT COUNT(*) as count FROM LABEL WHERE " + LabelFilterConfig.getColorFilterSQL());
+            if (rs.next()) {
+                stats.put("valid_labels_by_color", rs.getInt("count"));
+            }
+            rs.close();
+            
+            // Issues with valid labels
+            rs = stmt.executeQuery(
+                "SELECT COUNT(DISTINCT ISSUE_ID) as count FROM LABEL WHERE " + 
+                LabelFilterConfig.getColorFilterSQL());
+            if (rs.next()) {
+                stats.put("issues_with_valid_labels", rs.getInt("count"));
+            }
+            rs.close();
+            
+            // Issues by label count
+            rs = stmt.executeQuery(
+                "SELECT label_count, COUNT(*) as issue_count " +
+                "FROM (SELECT ISSUE_ID, COUNT(*) as label_count FROM LABEL GROUP BY ISSUE_ID) " +
+                "GROUP BY label_count ORDER BY label_count");
+            Map<Integer, Integer> labelCountDistribution = new HashMap<>();
+            while (rs.next()) {
+                labelCountDistribution.put(rs.getInt("label_count"), rs.getInt("issue_count"));
+            }
+            stats.put("label_count_distribution", labelCountDistribution);
+            rs.close();
+            
+            stmt.close();
+            com.phd.db.Connect.closeConnection(con);
+            
+        } catch (SQLException e) {
+            System.out.println("Error getting label statistics: " + e.getMessage());
+        }
+        
+        return stats;
+    }
+    
+    /**
+     * Print label statistics in human-readable format.
+     */
+    public static void printLabelStatistics() {
+        System.out.println("\n=== Label Statistics ===");
+        Map<String, Object> stats = getLabelStatistics();
+        
+        System.out.println("Total Labels: " + stats.get("total_labels"));
+        System.out.println("Valid Labels (by color): " + stats.get("valid_labels_by_color"));
+        System.out.println("Issues with Valid Labels: " + stats.get("issues_with_valid_labels"));
+        
+        System.out.println("\nColor Distribution:");
+        @SuppressWarnings("unchecked")
+        Map<String, Integer> colorDist = (Map<String, Integer>) stats.get("color_distribution");
+        colorDist.forEach((color, count) -> {
+            boolean isValid = LabelFilterConfig.isValidLabelColor(color);
+            System.out.println("  " + color + ": " + count + (isValid ? " [VALID]" : " [FILTERED]"));
+        });
+        
+        System.out.println("\nLabel Count Distribution:");
+        @SuppressWarnings("unchecked")
+        Map<Integer, Integer> labelCountDist = (Map<Integer, Integer>) stats.get("label_count_distribution");
+        labelCountDist.forEach((labelCount, issueCount) -> 
+            System.out.println("  " + labelCount + " label(s): " + issueCount + " issue(s)"));
+        
+        System.out.println("========================\n");
     }
 }
 

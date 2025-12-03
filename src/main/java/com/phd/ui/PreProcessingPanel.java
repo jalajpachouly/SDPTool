@@ -1,6 +1,7 @@
 package com.phd.ui;
 
 import com.phd.config.Configuration;
+import com.phd.data.DataExporter;
 import com.phd.data.preprocess.DataPrePorcessingAndValiadtion;
 import com.phd.db.DBManager;
 import com.phd.domain.CodeChanges;
@@ -26,6 +27,8 @@ public class PreProcessingPanel extends JPanel {
     };
 
     static JButton performDataPreProcessingButton;
+    static JButton exportMultilabelButton;
+    static JButton exportMulticlassButton;
     static JProgressBar progressBar;
     static JLabel statusLabel;
 
@@ -100,9 +103,34 @@ public class PreProcessingPanel extends JPanel {
         hint.setForeground(new Color(80, 90, 102));
         footer.add(hint, BorderLayout.NORTH);
 
+        // Create buttons panel with horizontal layout
         performDataPreProcessingButton = new JButton("Perform Database PreProcessing & Validation");
+        exportMultilabelButton = new JButton("Export Multilabel Dataset");
+        exportMulticlassButton = new JButton("Export Multiclass Dataset");
+        
+        // Style export buttons
+        exportMultilabelButton.setBackground(new Color(46, 125, 50)); // Green
+        exportMultilabelButton.setForeground(Color.WHITE);
+        exportMulticlassButton.setBackground(new Color(25, 118, 210)); // Blue
+        exportMulticlassButton.setForeground(Color.WHITE);
+        
+        // Add action listeners for export buttons
+        exportMultilabelButton.addActionListener(e -> {
+            SwingUtilities.invokeLater(() -> {
+                DataExporter.exportMultilabel((JFrame) SwingUtilities.getWindowAncestor(PreProcessingPanel.this));
+            });
+        });
+        
+        exportMulticlassButton.addActionListener(e -> {
+            SwingUtilities.invokeLater(() -> {
+                DataExporter.exportMulticlass((JFrame) SwingUtilities.getWindowAncestor(PreProcessingPanel.this));
+            });
+        });
+        
         JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         controls.add(performDataPreProcessingButton);
+        controls.add(exportMultilabelButton);
+        controls.add(exportMulticlassButton);
         footer.add(controls, BorderLayout.CENTER);
 
         JPanel progressPanel = new JPanel();
