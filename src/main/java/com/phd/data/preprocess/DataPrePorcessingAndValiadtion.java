@@ -17,15 +17,26 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class DataPrePorcessingAndValiadtion {
-    private static List<String> stopwords;
+    private static List<String> stopwords = new ArrayList<>();
     static SimpleDateFormat formatter = new SimpleDateFormat("E MMM dd HH:mm:ss Z yyyy");
 
 
     static
     {
         try {
-            stopwords = Files.readAllLines(Paths.get("C:\\GitHub\\SDPTool\\src\\main\\resources\\english-stop-word.txt"));
+            // Load from classpath instead of hardcoded path
+            try (var stream = DataPrePorcessingAndValiadtion.class.getResourceAsStream("/english-stop-word.txt")) {
+                if (stream != null) {
+                    stopwords = new java.io.BufferedReader(new java.io.InputStreamReader(stream))
+                            .lines()
+                            .collect(Collectors.toList());
+                    System.out.println("Loaded " + stopwords.size() + " stop words from classpath");
+                } else {
+                    System.err.println("WARNING: english-stop-word.txt not found in classpath. Stop words will be empty.");
+                }
+            }
         } catch (IOException e) {
+            System.err.println("ERROR: Failed to load stop words: " + e.getMessage());
             e.printStackTrace();
         }
     }
