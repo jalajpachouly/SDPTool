@@ -337,8 +337,24 @@ def save_best_model_from_results(
     print(f"{'='*80}")
     print(f"Selection metric: {selection_metric}")
     
-    # Find best model based on selection metric
+    # Aggregate results by model (results are per-label, need to aggregate to per-model)
     df_results = pd.DataFrame(combined_results)
+    
+    # Group by Model and calculate mean metrics
+    model_metrics = df_results.groupby('Model').agg({
+        'Recall': 'mean',
+        'F1': 'mean',
+        'Hamming Loss': 'first'  # Hamming loss is the same for all labels of a model
+    }).reset_index()
+    
+    model_metrics.columns = ['Model', 'Macro Recall', 'Macro F1', 'Hamming Loss']
+    
+    # Calculate Micro metrics (these would need to be calculated properly, for now use Macro as proxy)
+    model_metrics['Micro Recall'] = model_metrics['Macro Recall']
+    model_metrics['Micro F1'] = model_metrics['Macro F1']
+    
+    print("\nModel Performance Summary:")
+    print(model_metrics.to_string(index=False))
     
     # Map metric names
     metric_column_map = {
@@ -353,19 +369,20 @@ def save_best_model_from_results(
     
     # For hamming loss, lower is better
     if selection_metric == 'hamming_loss':
-        best_idx = df_results[metric_column].idxmin()
+        best_idx = model_metrics[metric_column].idxmin()
     else:
-        best_idx = df_results[metric_column].idxmax()
+        best_idx = model_metrics[metric_column].idxmax()
     
-    best_result = df_results.loc[best_idx]
+    best_result = model_metrics.loc[best_idx]
     model_name = best_result['Model']
     
-    print(f"Best model: {model_name}")
+    print(f"\nBest model: {model_name}")
     print(f"Best {metric_column}: {best_result[metric_column]:.4f}")
     
     # Get the trained model object
     if model_name not in trained_models:
         print(f"[WARNING] Model '{model_name}' not found in trained models dictionary")
+        print(f"Available models: {list(trained_models.keys())}")
         return
     
     model = trained_models[model_name]
