@@ -129,5 +129,18 @@
   "analysis": {
     "enable_error_analysis": true,
     "enable_statistical_significance": true
+  },
+  "model_persistence": {
+    "enabled": true,
+    "save_best_model": true,
+    "custom_model_name": null,
+    "selection_metric": "macro_f1"
+  },
+  "prediction": {
+    "enabled": false,
+    "run_id": null,
+    "mode": "interactive",
+    "input_file": null,
+    "row_numbers": null
   }
 }

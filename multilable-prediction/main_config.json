@@ -105,5 +105,21 @@
     "save_cv_results_csv": true,
     "results_filename": "experiment_results.csv",
     "cv_results_filename": "cv_results.csv"
+  },
+  
+  "model_persistence": {
+    "enabled": true,
+    "save_best_model": true,
+    "custom_model_name": null,
+    "selection_metric": "macro_f1",
+    "models_directory": "multilable-prediction/models"
+  },
+  
+  "prediction": {
+    "enabled": false,
+    "run_id": null,
+    "mode": "interactive",
+    "input_file": null,
+    "row_numbers": null
   }
 }

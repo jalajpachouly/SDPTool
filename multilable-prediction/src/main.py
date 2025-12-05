@@ -48,6 +48,7 @@ from utils.evaluation import (
     evaluate_classifier,
     evaluate_deep_learning_model
 )
+from utils.model_persistence import ModelPersistence
 from utils.visualization import (
     visualize_word_cloud,
     visualize_description_length,
@@ -296,6 +297,118 @@ def analyze_misclassifications(y_test, y_pred, label_names, model_name):
     print("=" * 80)
 
 
+def save_best_model_from_results(
+    combined_results,
+    trained_models,
+    vectorizer,
+    feature_selector,
+    tokenizer_dict,
+    ui_config
+):
+    """
+    Identify and save the best performing model from training results.
+    
+    Args:
+        combined_results: List of result dictionaries from all models
+        trained_models: Dictionary mapping model names to trained model objects
+        vectorizer: TfidfVectorizer used
+        feature_selector: Chi-square selector (if used)
+        tokenizer_dict: Dictionary mapping model names to tokenizers (for DL models)
+        ui_config: UI configuration dictionary
+    """
+    if not combined_results:
+        print("[INFO] No models to save (no results available)")
+        return
+    
+    # Get model persistence configuration
+    model_persistence_config = ui_config.get('model_persistence', {})
+    persistence_enabled = model_persistence_config.get('enabled', True)
+    save_best = model_persistence_config.get('save_best_model', True)
+    
+    if not persistence_enabled or not save_best:
+        print("[INFO] Model persistence is disabled in configuration")
+        return
+    
+    selection_metric = model_persistence_config.get('selection_metric', 'macro_f1')
+    custom_name = model_persistence_config.get('custom_model_name', None)
+    
+    print(f"\n{'='*80}")
+    print(f"IDENTIFYING BEST MODEL FOR PERSISTENCE")
+    print(f"{'='*80}")
+    print(f"Selection metric: {selection_metric}")
+    
+    # Find best model based on selection metric
+    df_results = pd.DataFrame(combined_results)
+    
+    # Map metric names
+    metric_column_map = {
+        'macro_f1': 'Macro F1',
+        'micro_f1': 'Micro F1',
+        'macro_recall': 'Macro Recall',
+        'micro_recall': 'Micro Recall',
+        'hamming_loss': 'Hamming Loss'
+    }
+    
+    metric_column = metric_column_map.get(selection_metric, 'Macro F1')
+    
+    # For hamming loss, lower is better
+    if selection_metric == 'hamming_loss':
+        best_idx = df_results[metric_column].idxmin()
+    else:
+        best_idx = df_results[metric_column].idxmax()
+    
+    best_result = df_results.loc[best_idx]
+    model_name = best_result['Model']
+    
+    print(f"Best model: {model_name}")
+    print(f"Best {metric_column}: {best_result[metric_column]:.4f}")
+    
+    # Get the trained model object
+    if model_name not in trained_models:
+        print(f"[WARNING] Model '{model_name}' not found in trained models dictionary")
+        return
+    
+    model = trained_models[model_name]
+    
+    # Determine model type
+    model_type = 'deep_learning' if model_name in ['MLP', 'CNN'] else 'traditional_ml'
+    
+    # Get tokenizer if deep learning model
+    tokenizer = tokenizer_dict.get(model_name, None)
+    
+    # Prepare metrics dictionary
+    metrics = {
+        'macro_f1': float(best_result['Macro F1']),
+        'micro_f1': float(best_result['Micro F1']),
+        'macro_recall': float(best_result['Macro Recall']),
+        'micro_recall': float(best_result['Micro Recall']),
+        'hamming_loss': float(best_result['Hamming Loss'])
+    }
+    
+    # Save the model
+    persistence = ModelPersistence()
+    
+    try:
+        model_dir = persistence.save_best_model(
+            model=model,
+            model_name=model_name,
+            model_type=model_type,
+            metrics=metrics,
+            vectorizer=vectorizer,
+            feature_selector=feature_selector,
+            tokenizer=tokenizer,
+            config=ui_config,
+            custom_name=custom_name
+        )
+        
+        print(f"[SUCCESS] Best model saved successfully to: {model_dir}")
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to save model: {e}")
+        import traceback
+        traceback.print_exc()
+
+
 def main(data_type='Unbalanced'):
     """
     Main function to execute data processing, model training, evaluation, and visualization.
@@ -441,6 +554,8 @@ def main(data_type='Unbalanced'):
     # =============================================================================
     
     traditional_ml_results = []
+    trained_models = {}  # Track all trained models for persistence
+    tokenizer_dict = {}  # Track tokenizers for deep learning models
     classifiers_to_run = []
     
     # Define Classifiers based on feature flags
@@ -493,6 +608,8 @@ def main(data_type='Unbalanced'):
                                         enable_error_analysis=enable_error_analysis, 
                                         analyze_misclassifications_func=analyze_misclassifications)
             traditional_ml_results.extend(results)
+            # Store trained model for persistence
+            trained_models[model_name] = clf
 
     # =============================================================================
     # MLP DEEP LEARNING MODEL (Feature-Flagged)
@@ -537,6 +654,9 @@ def main(data_type='Unbalanced'):
         mlp_results = evaluate_deep_learning_model(deep_learning_model, X_test_tfidf, y_test_np, 'MLP', label_names, 
                                                    enable_error_analysis=enable_error_analysis,
                                                    analyze_misclassifications_func=analyze_misclassifications)
+        # Store trained model for persistence
+        trained_models['MLP'] = deep_learning_model
+        tokenizer_dict['MLP'] = None  # MLP doesn't use tokenizer
     else:
         print("\n[INFO] MLP model disabled by feature flag")
 
@@ -589,6 +709,9 @@ def main(data_type='Unbalanced'):
         cnn_results = evaluate_deep_learning_model(cnn_model, X_test_dl, y_test_np, 'CNN', label_names, 
                                                    enable_error_analysis=enable_error_analysis,
                                                    analyze_misclassifications_func=analyze_misclassifications)
+        # Store trained model and tokenizer for persistence
+        trained_models['CNN'] = cnn_model
+        tokenizer_dict['CNN'] = tokenizer
     else:
         print("\n[INFO] CNN model disabled by feature flag")
 
@@ -611,6 +734,20 @@ def main(data_type='Unbalanced'):
         sns.set(style="whitegrid")
         visualize_f1_scores(df_results, data_type)
 
+    # =============================================================================
+    # MODEL PERSISTENCE (Feature-Flagged)
+    # =============================================================================
+    
+    # Save best model if persistence is enabled
+    save_best_model_from_results(
+        combined_results=combined_results,
+        trained_models=trained_models,
+        vectorizer=vectorizer,
+        feature_selector=selector,
+        tokenizer_dict=tokenizer_dict,
+        ui_config=ui_config
+    )
+
     print("\nAll processes completed successfully.")
 
 
@@ -623,6 +760,55 @@ if __name__ == "__main__":
     ui_config = load_ui_config()
     experiment_name = ui_config.get('experiment_name', 'default_run')
     
+    # Check if prediction mode is enabled
+    prediction_config = ui_config.get('prediction', {})
+    prediction_enabled = prediction_config.get('enabled', False)
+    
+    if prediction_enabled:
+        # Run prediction mode using existing saved model
+        print("\n" + "="*80)
+        print("PREDICTION MODE")
+        print("="*80)
+        
+        run_id = prediction_config.get('run_id')
+        mode = prediction_config.get('mode', 'interactive')
+        input_file = prediction_config.get('input_file')
+        row_numbers = prediction_config.get('row_numbers')
+        
+        if not run_id:
+            print("[ERROR] Prediction mode enabled but 'run_id' not specified in config")
+            print("Please set 'prediction.run_id' in your config file")
+            sys.exit(1)
+        
+        print(f"Loading model: {run_id}")
+        print(f"Prediction mode: {mode}")
+        
+        # Import predictor
+        from predict_with_model import ModelPredictor
+        
+        try:
+            predictor = ModelPredictor(run_id)
+            
+            if mode == 'interactive':
+                predictor.run_interactive_mode()
+            elif mode == 'csv' and input_file:
+                predictor.predict_from_csv(input_file)
+            elif mode == 'row' and row_numbers:
+                predictor.predict_from_rows(row_numbers)
+            else:
+                print(f"[ERROR] Invalid prediction mode or missing parameters")
+                print(f"Mode: {mode}, Input file: {input_file}, Rows: {row_numbers}")
+                sys.exit(1)
+                
+        except Exception as e:
+            print(f"[ERROR] Prediction failed: {e}")
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
+        
+        sys.exit(0)  # Exit after prediction
+    
+    # Training mode (existing code)
     # Setup output directory with new structure: output/reports/<Run_ID>
     base_output_dir = Path(__file__).parent.parent / 'output' / 'reports' / experiment_name
     base_output_dir.mkdir(parents=True, exist_ok=True)
