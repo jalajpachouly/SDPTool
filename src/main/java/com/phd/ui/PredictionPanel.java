@@ -7,11 +7,14 @@ import org.json.JSONTokener;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -19,8 +22,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -415,7 +420,17 @@ public class PredictionPanel extends JPanel {
                 JOptionPane.showMessageDialog(this, "Failed to open report: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
         } else {
-            JOptionPane.showMessageDialog(this, "Report not found.", "Error", JOptionPane.ERROR_MESSAGE);
+            // Fallback to log.txt if report.html doesn't exist
+            File logFile = new File(runDir, "log.txt");
+            if (logFile.exists()) {
+                try {
+                    Desktop.getDesktop().open(logFile);  // Use open() for text files
+                } catch (IOException ex) {
+                    JOptionPane.showMessageDialog(this, "Failed to open log: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            } else {
+                JOptionPane.showMessageDialog(this, "Neither report.html nor log.txt found.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
         }
     }
 
@@ -428,6 +443,31 @@ public class PredictionPanel extends JPanel {
         } catch (IOException ex) {
             JOptionPane.showMessageDialog(this, "Failed to delete run: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    private File findReportForModel(String runId) {
+        // Try to find a training report matching this model's run ID
+        for (String dirPath : REPORT_DIRS) {
+            File reportsBaseDir = new File(dirPath);
+            if (!reportsBaseDir.exists()) continue;
+            
+            // Look for exact match first
+            File exactMatch = new File(reportsBaseDir, runId);
+            if (exactMatch.exists() && (new File(exactMatch, "report.html").exists() || new File(exactMatch, "log.txt").exists())) {
+                return exactMatch;
+            }
+            
+            // Look for partial match (runId might be part of directory name)
+            File[] dirs = reportsBaseDir.listFiles(File::isDirectory);
+            if (dirs != null) {
+                for (File dir : dirs) {
+                    if (dir.getName().contains(runId) && (new File(dir, "report.html").exists() || new File(dir, "log.txt").exists())) {
+                        return dir;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private String resolveStatus(String statusValue, boolean hasCompleteFlag) {
@@ -602,21 +642,14 @@ public class PredictionPanel extends JPanel {
         
         gbc.gridwidth = 1;
         
-        // Prediction mode
+        // Prediction mode - Only "rows" option visible for now
         gbc.gridx = 0; gbc.gridy = row;
         contentPanel.add(new JLabel("Prediction Mode:"), gbc);
         gbc.gridx = 1;
-        JComboBox<String> modeCombo = new JComboBox<>(new String[]{"interactive", "csv", "row"});
+        // Note: Interactive and CSV modes are disabled in UI (but still available in Python script)
+        JComboBox<String> modeCombo = new JComboBox<>(new String[]{"rows"});
+        modeCombo.setEnabled(false); // Only one option, so disable dropdown
         contentPanel.add(modeCombo, gbc);
-        row++;
-        
-        // Input file (for CSV mode)
-        gbc.gridx = 0; gbc.gridy = row;
-        JLabel inputFileLabel = new JLabel("Input CSV File:");
-        contentPanel.add(inputFileLabel, gbc);
-        gbc.gridx = 1;
-        JTextField inputFileField = new JTextField();
-        contentPanel.add(inputFileField, gbc);
         row++;
         
         // Row numbers (for row mode)
@@ -628,15 +661,9 @@ public class PredictionPanel extends JPanel {
         contentPanel.add(rowNumbersField, gbc);
         row++;
         
-        // Enable/disable fields based on mode
-        modeCombo.addActionListener(e -> {
-            String mode = (String) modeCombo.getSelectedItem();
-            inputFileField.setEnabled("csv".equals(mode));
-            inputFileLabel.setEnabled("csv".equals(mode));
-            rowNumbersField.setEnabled("row".equals(mode));
-            rowNumbersLabel.setEnabled("row".equals(mode));
-        });
-        modeCombo.setSelectedIndex(0);
+        // Hidden/disabled fields for future use
+        JTextField inputFileField = new JTextField();
+        inputFileField.setVisible(false);
         
         // Buttons
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
@@ -663,28 +690,181 @@ public class PredictionPanel extends JPanel {
     }
     
     private void executePrediction(String runId, String mode, String inputFile, String rowNumbers) {
-        // Build Python command
-        StringBuilder command = new StringBuilder();
-        command.append("python multilable-prediction/src/predict_with_model.py");
-        command.append(" --run_id ").append(runId);
-        command.append(" --mode ").append(mode);
+        // Use venv Python interpreter if available
+        Path venvPython = Paths.get("venv/Scripts/python.exe").toAbsolutePath();
+        String pythonExe = Files.exists(venvPython) ? venvPython.toString() : "python";
+        Path pythonScript = Paths.get("multilable-prediction/src/predict_with_model.py").toAbsolutePath();
+        
+        // Validate script exists
+        if (!Files.exists(pythonScript)) {
+            JOptionPane.showMessageDialog(this,
+                "Python script not found: " + pythonScript,
+                "Error",
+                JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        // Create log directory
+        Path logDir = Paths.get("multilable-prediction/output/prediction_logs");
+        try {
+            Files.createDirectories(logDir);
+        } catch (Exception e) {
+            System.err.println("Failed to create log directory: " + e.getMessage());
+        }
+        
+        String timestamp = java.time.LocalDateTime.now().format(
+            java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")
+        );
+        Path logFile = logDir.resolve("prediction_" + runId + "_" + timestamp + ".log");
+        
+        // Build command as List to avoid quote escaping issues
+        List<String> command = new ArrayList<>();
+        command.add(pythonExe);
+        command.add(pythonScript.toString());
+        command.add(runId);
+        command.add("--mode");
+        command.add(mode);
+        command.add("--json"); // Request JSON output
         
         if ("csv".equals(mode) && !inputFile.isEmpty()) {
-            command.append(" --input \"").append(inputFile).append("\"");
-        } else if ("row".equals(mode) && !rowNumbers.isEmpty()) {
-            command.append(" --rows ").append(rowNumbers.replace(",", " "));
+            command.add("--input");
+            command.add(inputFile);
+        } else if ("rows".equals(mode) && !rowNumbers.isEmpty()) {
+            // Add dataset argument first
+            Path datasetPath = Paths.get("multilable-prediction/data/dataset.csv").toAbsolutePath();
+            command.add("--dataset");
+            command.add(datasetPath.toString());
+            // Add rows argument with comma-separated values
+            command.add("--rows");
+            command.add(rowNumbers.trim());
         }
         
-        // Execute command in terminal
-        try {
-            ProcessBuilder pb = new ProcessBuilder("cmd.exe", "/c", "start", "cmd.exe", "/k", command.toString());
-            pb.start();
-        } catch (IOException ex) {
-            JOptionPane.showMessageDialog(this, 
-                "Failed to start prediction: " + ex.getMessage(), 
-                "Error", 
-                JOptionPane.ERROR_MESSAGE);
-        }
+        // Execute and capture output
+        ProcessBuilder pb = new ProcessBuilder(command);
+        pb.directory(new File(System.getProperty("user.dir")));
+        pb.redirectErrorStream(true);
+        
+        // Show progress dialog
+        JDialog progressDialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Running Prediction", true);
+        JProgressBar progressBar = new JProgressBar();
+        progressBar.setIndeterminate(true);
+        progressBar.setString("Running prediction...");
+        progressBar.setStringPainted(true);
+        JPanel progressPanel = new JPanel(new BorderLayout(10, 10));
+        progressPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        progressPanel.add(new JLabel("Please wait while the model makes predictions..."), BorderLayout.NORTH);
+        progressPanel.add(progressBar, BorderLayout.CENTER);
+        progressDialog.add(progressPanel);
+        progressDialog.setSize(400, 120);
+        progressDialog.setLocationRelativeTo(this);
+        progressDialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+        
+        // Run prediction in background thread
+        SwingWorker<String, Void> worker = new SwingWorker<String, Void>() {
+            private StringBuilder fullLog = new StringBuilder();
+            
+            @Override
+            protected String doInBackground() throws Exception {
+                // Log command execution
+                fullLog.append("=".repeat(80)).append("\n");
+                fullLog.append("PREDICTION EXECUTION LOG\n");
+                fullLog.append("=".repeat(80)).append("\n");
+                fullLog.append("Timestamp: ").append(timestamp).append("\n");
+                fullLog.append("Run ID: ").append(runId).append("\n");
+                fullLog.append("Mode: ").append(mode).append("\n");
+                if ("rows".equals(mode)) {
+                    fullLog.append("Rows: ").append(rowNumbers).append("\n");
+                } else if ("csv".equals(mode)) {
+                    fullLog.append("Input File: ").append(inputFile).append("\n");
+                }
+                fullLog.append("Python Executable: ").append(pythonExe).append("\n");
+                fullLog.append("Command: ").append(String.join(" ", command)).append("\n");
+                fullLog.append("=".repeat(80)).append("\n\n");
+                
+                Process process = pb.start();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                StringBuilder output = new StringBuilder();
+                String line;
+                boolean inJson = false;
+                
+                fullLog.append("PYTHON OUTPUT:\n");
+                fullLog.append("-".repeat(80)).append("\n");
+                
+                while ((line = reader.readLine()) != null) {
+                    fullLog.append(line).append("\n"); // Log everything
+                    
+                    if (line.contains("JSON_OUTPUT_START")) {
+                        inJson = true;
+                        continue;
+                    } else if (line.contains("JSON_OUTPUT_END")) {
+                        break;
+                    }
+                    
+                    if (inJson) {
+                        output.append(line).append("\n");
+                    }
+                }
+                
+                int exitCode = process.waitFor();
+                fullLog.append("-".repeat(80)).append("\n");
+                fullLog.append("Process exit code: ").append(exitCode).append("\n");
+                fullLog.append("=".repeat(80)).append("\n");
+                
+                // Write log to file
+                try {
+                    Files.write(logFile, fullLog.toString().getBytes());
+                    System.out.println("Prediction log saved to: " + logFile);
+                } catch (Exception e) {
+                    System.err.println("Failed to write log file: " + e.getMessage());
+                }
+                
+                return output.toString();
+            }
+            
+            @Override
+            protected void done() {
+                progressDialog.dispose();
+                
+                try {
+                    String jsonOutput = get();
+                    
+                    if (jsonOutput.isEmpty()) {
+                        String errorMsg = "No prediction results received from Python script.\n\n" +
+                                        "Log file: " + logFile.toString();
+                        JOptionPane.showMessageDialog(PredictionPanel.this,
+                            errorMsg,
+                            "Error",
+                            JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+                    
+                    // Parse JSON and show dialog
+                    JSONObject jsonResults = new JSONObject(jsonOutput);
+                    Map<String, Object> resultsMap = jsonToMap(jsonResults);
+                    
+                    PredictionResultDialog dialog = new PredictionResultDialog(
+                        (Frame) SwingUtilities.getWindowAncestor(PredictionPanel.this),
+                        resultsMap
+                    );
+                    dialog.setVisible(true);
+                    
+                    // Show log location in console
+                    System.out.println("Prediction completed successfully. Log: " + logFile);
+                    
+                } catch (Exception ex) {
+                    String errorMsg = "Failed to parse prediction results: " + ex.getMessage() + "\n\n" +
+                                    "Log file: " + logFile.toString();
+                    JOptionPane.showMessageDialog(PredictionPanel.this,
+                        errorMsg,
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
+                    ex.printStackTrace();
+                }
+            }
+        };
+        
+        worker.execute();
+        progressDialog.setVisible(true); // Blocks until worker completes
     }
     
     private void deleteModel(File modelDir) {
@@ -697,6 +877,52 @@ public class PredictionPanel extends JPanel {
         } catch (IOException ex) {
             JOptionPane.showMessageDialog(this, "Failed to delete model: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
+    }
+    
+    /**
+     * Convert JSONObject to Map recursively
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> jsonToMap(JSONObject json) {
+        Map<String, Object> map = new HashMap<>();
+        
+        Iterator<String> keys = json.keys();
+        while (keys.hasNext()) {
+            String key = keys.next();
+            Object value = json.get(key);
+            
+            if (value instanceof JSONObject) {
+                map.put(key, jsonToMap((JSONObject) value));
+            } else if (value instanceof JSONArray) {
+                map.put(key, jsonArrayToList((JSONArray) value));
+            } else {
+                map.put(key, value);
+            }
+        }
+        
+        return map;
+    }
+    
+    /**
+     * Convert JSONArray to List recursively
+     */
+    @SuppressWarnings("unchecked")
+    private List<Object> jsonArrayToList(JSONArray array) {
+        List<Object> list = new ArrayList<>();
+        
+        for (int i = 0; i < array.length(); i++) {
+            Object value = array.get(i);
+            
+            if (value instanceof JSONObject) {
+                list.add(jsonToMap((JSONObject) value));
+            } else if (value instanceof JSONArray) {
+                list.add(jsonArrayToList((JSONArray) value));
+            } else {
+                list.add(value);
+            }
+        }
+        
+        return list;
     }
 
     private static class RunMetadata {

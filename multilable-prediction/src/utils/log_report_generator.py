@@ -992,7 +992,7 @@ class LogReportGenerator:
         '''
         
         # Data balancing impact
-        if 'cv_improvement' in self.report_data['comparison']:
+        if 'cv_improvement' in self.report_data['comparison'] and self.report_data['comparison']['cv_improvement']:
             avg_improvement = sum(v['improvement_pct'] for v in self.report_data['comparison']['cv_improvement'].values()) / len(self.report_data['comparison']['cv_improvement'])
             html += f'''
             <div class="metric-card">

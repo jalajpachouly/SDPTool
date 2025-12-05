@@ -258,7 +258,6 @@ public class AITechniquePanel extends JPanel {
         tabs.addTab("Deep Learning", wrapTab(createDeepLearningGeneralPanel()));
         tabs.addTab("MLP", wrapTab(createMlpPanel()));
         tabs.addTab("CNN", wrapTab(createCnnPanel()));
-        tabs.addTab("Prediction & Models", new PredictionPanel());
         return tabs;
     }
 
@@ -729,7 +728,13 @@ public class AITechniquePanel extends JPanel {
                 }
 
                 List<String> command = new ArrayList<>();
-                command.add("python");
+                // Use venv Python interpreter if available
+                Path venvPython = Paths.get("venv/Scripts/python.exe").toAbsolutePath();
+                if (Files.exists(venvPython)) {
+                    command.add(venvPython.toString());
+                } else {
+                    command.add("python");
+                }
                 command.add(scriptPath.toString());
                 if (configPathObj != null) {
                     command.add(configPathObj.toString());

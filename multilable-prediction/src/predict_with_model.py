@@ -13,11 +13,14 @@ import argparse
 
 import pandas as pd
 import numpy as np
-from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 # Local imports
 from utils.model_persistence import ModelPersistence
 from utils.config import LABELS
+
+# TensorFlow imports - only loaded when needed for deep learning models
+# Lazy import to avoid DLL errors on systems without proper TensorFlow setup
+pad_sequences = None
 
 
 class ModelPredictor:
@@ -65,6 +68,19 @@ class ModelPredictor:
                 if self.tokenizer is None:
                     raise ValueError("Tokenizer not found for CNN model")
                 
+                # Lazy import TensorFlow only when needed
+                global pad_sequences
+                if pad_sequences is None:
+                    try:
+                        from tensorflow.keras.preprocessing.sequence import pad_sequences as _pad_sequences
+                        pad_sequences = _pad_sequences
+                    except ImportError as e:
+                        raise ImportError(
+                            "TensorFlow is required for CNN models but failed to load. "
+                            "Please install Microsoft Visual C++ Redistributable and restart. "
+                            "See: https://www.tensorflow.org/install/errors"
+                        ) from e
+                
                 # Get max_len from config
                 max_len = self.config.get('feature_engineering', {}).get('cnn', {}).get('max_len', 100)
                 
@@ -76,18 +92,18 @@ class ModelPredictor:
                 # MLP: Use TF-IDF
                 X_tfidf = self.vectorizer.transform(texts)
                 
-                # Apply feature selection if exists
+                # Apply feature selection if exists (feature_selector is array of indices)
                 if self.feature_selector is not None:
-                    X_tfidf = self.feature_selector.transform(X_tfidf)
+                    X_tfidf = X_tfidf[:, self.feature_selector]
                 
                 return X_tfidf.toarray()
         else:
             # Traditional ML: Use TF-IDF
             X_tfidf = self.vectorizer.transform(texts)
             
-            # Apply feature selection if exists
+            # Apply feature selection if exists (feature_selector is array of indices)
             if self.feature_selector is not None:
-                X_tfidf = self.feature_selector.transform(X_tfidf)
+                X_tfidf = X_tfidf[:, self.feature_selector]
             
             return X_tfidf
     
@@ -341,6 +357,7 @@ def main():
     parser.add_argument('--rows', help='Row numbers to predict (for rows mode), e.g., "1,5,10-15"')
     parser.add_argument('--output', help='Output file path for results (JSON)')
     parser.add_argument('--explain', action='store_true', help='Show prediction explanation')
+    parser.add_argument('--json', action='store_true', help='Output results in JSON format')
     
     args = parser.parse_args()
     
@@ -371,6 +388,13 @@ def main():
         
         row_numbers = parse_row_numbers(args.rows)
         results = predictor.predict_from_dataset_rows(args.dataset, row_numbers)
+    
+    # Output as JSON if requested
+    if args.json:
+        print("JSON_OUTPUT_START")
+        print(json.dumps(results, indent=2))
+        print("JSON_OUTPUT_END")
+        return
     
     # Print results
     print(f"\n{'='*80}")
@@ -408,6 +432,15 @@ def main():
         with open(args.output, 'w') as f:
             json.dump(results, f, indent=2)
         print(f"\nResults saved to: {args.output}")
+    
+    # Wait for user input before closing (only in non-JSON mode)
+    if not args.json:
+        print("\nPress any key to close...")
+        try:
+            import msvcrt
+            msvcrt.getch()
+        except:
+            input()
 
 
 if __name__ == "__main__":

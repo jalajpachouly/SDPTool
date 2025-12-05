@@ -547,7 +547,7 @@ def main(data_type='Unbalanced'):
 
     # Prepare Data with Vocabulary
     try:
-        X_train_tfidf, X_test_tfidf, selected_features, chi2_scores_max, vector = prepare_data(
+        X_train_tfidf, X_test_tfidf, selected_features, chi2_scores_max, vector, selected_indices = prepare_data(
             X_train_df, X_test_df, y_train_df, top_k=top_k, vocabulary=wordcloud_vocab
         )
     except Exception as e:
@@ -759,8 +759,8 @@ def main(data_type='Unbalanced'):
     save_best_model_from_results(
         combined_results=combined_results,
         trained_models=trained_models,
-        vectorizer=vectorizer,
-        feature_selector=selector,
+        vectorizer=vector,  # Fixed: use 'vector' from prepare_data()
+        feature_selector=selected_indices,  # Pass selected feature indices for prediction
         tokenizer_dict=tokenizer_dict,
         ui_config=ui_config
     )
@@ -810,7 +810,7 @@ if __name__ == "__main__":
                 predictor.run_interactive_mode()
             elif mode == 'csv' and input_file:
                 predictor.predict_from_csv(input_file)
-            elif mode == 'row' and row_numbers:
+            elif mode == 'rows' and row_numbers:
                 predictor.predict_from_rows(row_numbers)
             else:
                 print(f"[ERROR] Invalid prediction mode or missing parameters")
@@ -926,6 +926,44 @@ if __name__ == "__main__":
         print(f"[INFO] Run marked as completed: {completion_flag}")
     except Exception as e:
         print(f"[WARNING] Could not create completion flag: {e}")
+    
+    # Create metadata.json for UI display
+    try:
+        # Collect enabled models
+        enabled_models = []
+        if get_config_value(ui_config, 'models.traditional_ml.multinomial_nb.enabled', DEFAULT_MULTINOMIAL_NB_ENABLED):
+            enabled_models.append('MultinomialNB')
+        if get_config_value(ui_config, 'models.traditional_ml.logistic_regression.enabled', DEFAULT_LOGISTIC_REGRESSION_ENABLED):
+            enabled_models.append('LogisticRegression')
+        if get_config_value(ui_config, 'models.traditional_ml.random_forest.enabled', DEFAULT_RANDOM_FOREST_ENABLED):
+            enabled_models.append('RandomForest')
+        if get_config_value(ui_config, 'models.deep_learning.mlp.enabled', DEFAULT_MLP_ENABLED):
+            enabled_models.append('MLP')
+        if get_config_value(ui_config, 'models.deep_learning.cnn.enabled', DEFAULT_CNN_ENABLED):
+            enabled_models.append('CNN')
+        
+        # Collect data types
+        data_types = []
+        if get_config_value(ui_config, 'data.run_unbalanced', DEFAULT_RUN_UNBALANCED):
+            data_types.append('Unbalanced')
+        if get_config_value(ui_config, 'data.run_balanced', DEFAULT_RUN_BALANCED):
+            data_types.append('Balanced')
+        
+        metadata = {
+            'run_name': experiment_name,
+            'timestamp': training_start_time,
+            'status': 'Completed',
+            'models': enabled_models,
+            'data_types': data_types,
+            'problem_type': 'multi_label'
+        }
+        
+        metadata_path = base_output_dir / 'metadata.json'
+        with open(metadata_path, 'w', encoding='utf-8') as f:
+            json.dump(metadata, f, indent=2)
+        print(f"[INFO] Metadata saved: {metadata_path}")
+    except Exception as e:
+        print(f"[WARNING] Could not create metadata file: {e}")
 
 
 # =============================================================================

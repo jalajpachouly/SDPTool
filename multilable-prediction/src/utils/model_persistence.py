@@ -17,14 +17,16 @@ import numpy as np
 class ModelPersistence:
     """Handle saving and loading of trained models with metadata."""
     
-    def __init__(self, base_dir: str = "multilable-prediction/models"):
+    def __init__(self, base_dir: str = "../models"):
         """
         Initialize model persistence handler.
         
         Args:
-            base_dir: Base directory for storing models
+            base_dir: Base directory for storing models (relative to src/)
         """
-        self.base_dir = Path(base_dir)
+        # Resolve path relative to this file's location
+        # __file__ is in src/utils/, so parent.parent.parent gets to project root
+        self.base_dir = Path(__file__).parent.parent.parent / "models"
         self.base_dir.mkdir(parents=True, exist_ok=True)
     
     def generate_run_id(self, custom_name: Optional[str] = None) -> str:
@@ -94,7 +96,7 @@ class ModelPersistence:
             'artifacts': {
                 'model': 'model.pkl',
                 'vectorizer': 'vectorizer.pkl',
-                'feature_selector': 'feature_selector.pkl' if feature_selector else None,
+                'feature_selector': 'feature_indices.pkl' if feature_selector is not None else None,
                 'tokenizer': 'tokenizer.pkl' if tokenizer else None
             }
         }
@@ -114,9 +116,9 @@ class ModelPersistence:
         vectorizer_path = model_dir / 'vectorizer.pkl'
         joblib.dump(vectorizer, vectorizer_path)
         
-        # Save feature selector (if exists)
+        # Save feature selector/indices (if exists)
         if feature_selector is not None:
-            selector_path = model_dir / 'feature_selector.pkl'
+            selector_path = model_dir / 'feature_indices.pkl'
             joblib.dump(feature_selector, selector_path)
         
         # Save tokenizer (if exists)
@@ -182,9 +184,9 @@ class ModelPersistence:
         vectorizer_path = model_dir / 'vectorizer.pkl'
         vectorizer = joblib.load(vectorizer_path)
         
-        # Load feature selector (if exists)
+        # Load feature selector/indices (if exists)
         feature_selector = None
-        selector_path = model_dir / 'feature_selector.pkl'
+        selector_path = model_dir / 'feature_indices.pkl'
         if selector_path.exists():
             feature_selector = joblib.load(selector_path)
         

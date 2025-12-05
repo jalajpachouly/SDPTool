@@ -1,0 +1,165 @@
+{
+  "run_id": "test_20251205_140117",
+  "model_name": "RandomForest",
+  "model_type": "traditional_ml",
+  "saved_at": "2025-12-05T14:01:17.417173",
+  "metrics": {
+    "macro_f1": 0.8294185521138604,
+    "micro_f1": 0.8294185521138604,
+    "macro_recall": 0.8375616067986023,
+    "micro_recall": 0.8375616067986023,
+    "hamming_loss": 0.154296875
+  },
+  "config": {
+    "output": {
+      "cv_results_filename": "cv_results.csv",
+      "results_filename": "results.csv",
+      "save_results_csv": true,
+      "save_cv_results_csv": true
+    },
+    "models": {
+      "traditional_ml": {
+        "random_forest": {
+          "use_classifier_chain": true,
+          "n_estimators": 100,
+          "random_state": 42,
+          "enabled": true
+        },
+        "logistic_regression": {
+          "use_classifier_chain": true,
+          "max_iter": 10000,
+          "enabled": true
+        },
+        "multinomial_nb": {
+          "use_classifier_chain": true,
+          "enabled": true
+        },
+        "cv_n_splits": 10,
+        "run_cross_validation": true,
+        "run_cross_validation_by_model": {
+          "random_forest": true,
+          "logistic_regression": false,
+          "multinomial_nb": false
+        },
+        "enabled": true
+      },
+      "multi_class": {
+        "cv_n_splits": 5,
+        "deep_learning": {
+          "batch_size": 32,
+          "validation_split": 0.2,
+          "epochs": 50,
+          "enabled": false,
+          "architecture": "mlp"
+        },
+        "n_estimators": 200,
+        "run_cross_validation": false,
+        "max_iter": 1000,
+        "enabled": false,
+        "algorithm": "logistic_regression"
+      },
+      "deep_learning": {
+        "mlp": {
+          "cv_batch_size": 16,
+          "batch_size": 16,
+          "cv_n_splits": 10,
+          "run_cross_validation": true,
+          "validation_split": 0.2,
+          "epochs": 100,
+          "enabled": false,
+          "early_stopping_patience": 5,
+          "cv_epochs": 100,
+          "architecture": {
+            "layer2_dropout": 0.5,
+            "layer1_units": 256,
+            "layer1_dropout": 0.5,
+            "layer2_units": 128
+          }
+        },
+        "cnn": {
+          "cv_batch_size": 32,
+          "batch_size": 32,
+          "conv_filters": 128,
+          "embedding_dim": 100,
+          "cv_n_splits": 10,
+          "run_cross_validation": true,
+          "enabled": false,
+          "early_stopping_patience": 10,
+          "max_len": 100,
+          "max_words": 5000,
+          "dropout": 0.5,
+          "dense_units": 128,
+          "validation_split": 0.2,
+          "epochs": 20,
+          "conv_kernel_size": 5,
+          "cv_epochs": 10
+        },
+        "enabled": false
+      }
+    },
+    "experiment_name": "T8",
+    "feature_engineering": {
+      "max_words_per_label": 33,
+      "top_k_plot": 9,
+      "top_k": 15,
+      "tfidf": {
+        "use_idf": false,
+        "min_df": 4,
+        "ngram_range": [
+          2,
+          3
+        ]
+      },
+      "use_wordcloud_vocabulary": false,
+      "use_feature_selection": true
+    },
+    "visualizations": {
+      "correlation_matrix": false,
+      "nb_metrics": false,
+      "f1_scores": false,
+      "class_distribution": false,
+      "word_clouds": false,
+      "all_metrics_boxplot": false,
+      "label_frequency": false,
+      "top_features": false,
+      "enabled": false,
+      "description_length": false
+    },
+    "output_directory": "output/ui_generated",
+    "data": {
+      "dataset_path": "data/dataset.csv",
+      "run_unbalanced": false,
+      "sample_size": 123,
+      "test_size": 0.3,
+      "run_balanced": true,
+      "balanced_target_count": 900,
+      "random_state": 42,
+      "sample_random_state": 7
+    },
+    "prediction": {
+      "mode": "interactive",
+      "input_file": null,
+      "run_id": null,
+      "row_numbers": null,
+      "enabled": false
+    },
+    "problem_type": "multi_label",
+    "model_persistence": {
+      "selection_metric": "macro_f1",
+      "save_best_model": true,
+      "custom_model_name": "test",
+      "enabled": true
+    },
+    "run_cross_validation": true,
+    "analysis": {
+      "enable_error_analysis": true,
+      "enable_statistical_significance": true
+    }
+  },
+  "artifacts": {
+    "model": "model.pkl",
+    "vectorizer": "vectorizer.pkl",
+    "feature_selector": null,
+    "tokenizer": null
+  }
+}
