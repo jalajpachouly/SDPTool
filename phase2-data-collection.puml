@@ -1,0 +1,43 @@
+@startuml Phase2_DataCollection
+
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam shadowing false
+
+skinparam activity {
+  BackgroundColor #D5F4E6
+  BorderColor #34495E
+  FontColor #2C3E50
+  ArrowColor #34495E
+  ArrowThickness 2
+}
+
+title Phase 2: Data Collection from GitHub
+
+start
+
+:Connect to GitHub API;
+
+:Initialize Database;
+note right
+  Create 14 tables:
+  ISSUE, LABEL, COMMENTS,
+  CODE_CHANGES, etc.
+end note
+
+fork
+  :Fetch Issues;
+fork again
+  :Fetch Labels;
+fork again
+  :Fetch Comments;
+fork again
+  :Fetch Code Changes;
+end fork
+
+:Store in Database;
+
+stop
+
+@enduml

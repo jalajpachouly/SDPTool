@@ -1,0 +1,49 @@
+@startuml Workflow_Overview
+
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 16
+skinparam shadowing false
+
+skinparam rectangle {
+  BackgroundColor #E8F4F8
+  BorderColor #2C3E50
+  FontColor #000000
+  BorderThickness 3
+  FontStyle bold
+}
+
+skinparam arrow {
+  Color #2C3E50
+  Thickness 4
+}
+
+title Dataset Creation Workflow
+
+rectangle "<size:18>**1. Configuration**</size>\n\n<size:14>Repository Setup\nLabel Filters\nDatabase Config</size>" as P1 #AED6F1
+
+rectangle "<size:18>**2. Data Collection**</size>\n\n<size:14>GitHub API\nFetch Issues\nStore in Database</size>" as P2 #A9DFBF
+
+rectangle "<size:18>**3. Preprocessing**</size>\n\n<size:14>Text Cleaning\nNormalization\nAggregation</size>" as P3 #F9E79F
+
+rectangle "<size:18>**4. Validation**</size>\n\n<size:14>Remove Duplicates\nFilter Records\nLabel Consistency</size>" as P4 #F5B7B1
+
+rectangle "<size:18>**5. CSV Generation**</size>\n\n<size:14>Encode Labels\nExport MLDD/MCDD\nDataset Files</size>" as P5 #D7BDE2
+
+rectangle "<size:20>**ML-Ready Dataset**</size>" as OUTPUT #82E0AA
+
+P1 -right-> P2
+P2 -right-> P3
+P3 -down-> P4
+P4 -left-> P5
+P5 -down-> OUTPUT
+
+legend bottom right
+  <size:14><#AED6F1> Configuration</size>
+  <size:14><#A9DFBF> Data Collection</size>
+  <size:14><#F9E79F> Preprocessing</size>
+  <size:14><#F5B7B1> Validation</size>
+  <size:14><#D7BDE2> CSV Generation</size>
+endlegend
+
+@enduml
