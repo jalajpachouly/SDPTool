@@ -349,19 +349,13 @@ def save_best_model_from_results(
     
     model_metrics.columns = ['Model', 'Macro Recall', 'Macro F1', 'Hamming Loss']
     
-    # Calculate Micro metrics (these would need to be calculated properly, for now use Macro as proxy)
-    model_metrics['Micro Recall'] = model_metrics['Macro Recall']
-    model_metrics['Micro F1'] = model_metrics['Macro F1']
-    
     print("\nModel Performance Summary:")
     print(model_metrics.to_string(index=False))
     
     # Map metric names
     metric_column_map = {
         'macro_f1': 'Macro F1',
-        'micro_f1': 'Micro F1',
         'macro_recall': 'Macro Recall',
-        'micro_recall': 'Micro Recall',
         'hamming_loss': 'Hamming Loss'
     }
     
@@ -396,9 +390,7 @@ def save_best_model_from_results(
     # Prepare metrics dictionary
     metrics = {
         'macro_f1': float(best_result['Macro F1']),
-        'micro_f1': float(best_result['Micro F1']),
         'macro_recall': float(best_result['Macro Recall']),
-        'micro_recall': float(best_result['Micro Recall']),
         'hamming_loss': float(best_result['Hamming Loss'])
     }
     

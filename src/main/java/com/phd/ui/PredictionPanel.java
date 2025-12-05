@@ -782,7 +782,7 @@ public class PredictionPanel extends JPanel {
                 fullLog.append("=".repeat(80)).append("\n\n");
                 
                 Process process = pb.start();
-                BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(), java.nio.charset.StandardCharsets.UTF_8));
                 StringBuilder output = new StringBuilder();
                 String line;
                 boolean inJson = false;
