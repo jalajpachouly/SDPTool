@@ -54,7 +54,7 @@
         "run_cross_validation": true,
         "validation_split": 0.2,
         "epochs": 100,
-        "enabled": false,
+        "enabled": true,
         "early_stopping_patience": 5,
         "cv_epochs": 100,
         "architecture": {
@@ -71,7 +71,7 @@
         "embedding_dim": 100,
         "cv_n_splits": 10,
         "run_cross_validation": true,
-        "enabled": false,
+        "enabled": true,
         "early_stopping_patience": 10,
         "max_len": 100,
         "max_words": 5000,
@@ -82,14 +82,14 @@
         "conv_kernel_size": 5,
         "cv_epochs": 10
       },
-      "enabled": false
+      "enabled": true
     }
   },
-  "experiment_name": "t10",
+  "experiment_name": "Run-1",
   "feature_engineering": {
     "max_words_per_label": 33,
-    "top_k_plot": 9,
-    "top_k": 15,
+    "top_k_plot": 50,
+    "top_k": 50,
     "tfidf": {
       "use_idf": false,
       "min_df": 4,
@@ -102,27 +102,27 @@
     "use_feature_selection": true
   },
   "visualizations": {
-    "correlation_matrix": false,
-    "nb_metrics": false,
-    "f1_scores": false,
-    "class_distribution": false,
-    "word_clouds": false,
-    "all_metrics_boxplot": false,
-    "label_frequency": false,
-    "top_features": false,
-    "enabled": false,
-    "description_length": false
+    "correlation_matrix": true,
+    "nb_metrics": true,
+    "f1_scores": true,
+    "class_distribution": true,
+    "word_clouds": true,
+    "all_metrics_boxplot": true,
+    "label_frequency": true,
+    "top_features": true,
+    "enabled": true,
+    "description_length": true
   },
   "output_directory": "output/ui_generated",
   "data": {
     "dataset_path": "data/dataset.csv",
     "run_unbalanced": true,
-    "sample_size": 123,
-    "test_size": 0.3,
+    "sample_size": 100,
+    "test_size": 0.2,
     "run_balanced": true,
     "balanced_target_count": 900,
     "random_state": 42,
-    "sample_random_state": 7
+    "sample_random_state": 42
   },
   "prediction": {
     "mode": "interactive",
@@ -135,7 +135,7 @@
   "model_persistence": {
     "selection_metric": "macro_f1",
     "save_best_model": true,
-    "custom_model_name": "test",
+    "custom_model_name": "Model-with-100-sample",
     "enabled": true
   },
   "run_cross_validation": true,

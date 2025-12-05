@@ -143,9 +143,20 @@ public class PredictionPanel extends JPanel {
             List<File> sortedModelDirs = Arrays.asList(modelDirs);
             sortedModelDirs.sort(Comparator.comparingLong(File::lastModified).reversed());
             
+            // Build all metadata
+            List<ModelMetadata> allMetadata = new ArrayList<>();
             for (File modelDir : sortedModelDirs) {
-                ModelMetadata meta = buildModelMetadata(modelDir);
-                modelsListPanel.add(createModelEntry(meta));
+                allMetadata.add(buildModelMetadata(modelDir));
+            }
+            
+            // Determine best model based on selection metric
+            String selectionMetric = getSelectionMetricFromConfig();
+            ModelMetadata bestModel = determineBestModel(allMetadata, selectionMetric);
+            
+            // Display models
+            for (ModelMetadata meta : allMetadata) {
+                boolean isBest = (bestModel != null && meta.runId.equals(bestModel.runId));
+                modelsListPanel.add(createModelEntry(meta, isBest, selectionMetric));
                 modelsListPanel.add(Box.createVerticalStrut(12));
             }
         }
@@ -528,9 +539,7 @@ public class PredictionPanel extends JPanel {
                 JSONObject metricsJson = json.optJSONObject("metrics");
                 if (metricsJson != null) {
                     metadata.macroF1 = metricsJson.optDouble("macro_f1", 0.0);
-                    metadata.microF1 = metricsJson.optDouble("micro_f1", 0.0);
                     metadata.macroRecall = metricsJson.optDouble("macro_recall", 0.0);
-                    metadata.microRecall = metricsJson.optDouble("micro_recall", 0.0);
                     metadata.hammingLoss = metricsJson.optDouble("hamming_loss", 0.0);
                 }
             } catch (Exception ex) {
@@ -541,7 +550,54 @@ public class PredictionPanel extends JPanel {
         return metadata;
     }
     
-    private JPanel createModelEntry(ModelMetadata metadata) {
+    private String getSelectionMetricFromConfig() {
+        try {
+            File configFile = new File("multilable-prediction/configs/ui_config.json");
+            if (configFile.exists()) {
+                try (FileReader reader = new FileReader(configFile)) {
+                    JSONObject config = new JSONObject(new JSONTokener(reader));
+                    JSONObject modelPersistence = config.optJSONObject("model_persistence");
+                    if (modelPersistence != null) {
+                        return modelPersistence.optString("selection_metric", "macro_f1");
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            // Ignore, use default
+        }
+        return "macro_f1"; // Default
+    }
+    
+    private ModelMetadata determineBestModel(List<ModelMetadata> models, String selectionMetric) {
+        if (models.isEmpty()) {
+            return null;
+        }
+        
+        ModelMetadata best = models.get(0);
+        
+        for (ModelMetadata model : models) {
+            if (selectionMetric.equals("hamming_loss")) {
+                // Lower is better for hamming loss
+                if (model.hammingLoss < best.hammingLoss) {
+                    best = model;
+                }
+            } else if (selectionMetric.equals("macro_recall")) {
+                // Higher is better for recall
+                if (model.macroRecall > best.macroRecall) {
+                    best = model;
+                }
+            } else { // Default: macro_f1
+                // Higher is better for F1
+                if (model.macroF1 > best.macroF1) {
+                    best = model;
+                }
+            }
+        }
+        
+        return best;
+    }
+    
+    private JPanel createModelEntry(ModelMetadata metadata, boolean isBest, String selectionMetric) {
         JPanel panel = new JPanel(new BorderLayout(10, 0));
         panel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(200, 220, 240)),
@@ -557,6 +613,28 @@ public class PredictionPanel extends JPanel {
         JLabel nameLabel = new JLabel(metadata.modelName);
         nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD, 15f));
         nameLabel.setForeground(new Color(25, 118, 210));
+        
+        // Add "BEST MODEL" badge if this is the best model
+        if (isBest) {
+            JPanel nameRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+            nameRow.setOpaque(false);
+            nameRow.add(nameLabel);
+            
+            JLabel bestBadge = new JLabel("★ BEST");
+            bestBadge.setFont(bestBadge.getFont().deriveFont(Font.BOLD, 11f));
+            bestBadge.setForeground(Color.WHITE);
+            bestBadge.setBackground(new Color(76, 175, 80)); // Green
+            bestBadge.setOpaque(true);
+            bestBadge.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(56, 142, 60), 1),
+                BorderFactory.createEmptyBorder(2, 6, 2, 6)
+            ));
+            nameRow.add(bestBadge);
+            
+            leftSection.add(nameRow);
+        } else {
+            leftSection.add(nameLabel);
+        }
         
         JLabel typeLabel = new JLabel(metadata.modelType);
         typeLabel.setForeground(new Color(90, 98, 110));
@@ -581,9 +659,19 @@ public class PredictionPanel extends JPanel {
         centerSection.add(metricsTitle);
         centerSection.add(Box.createVerticalStrut(4));
         
-        centerSection.add(new JLabel(String.format("Macro F1: %.4f  |  Micro F1: %.4f", metadata.macroF1, metadata.microF1)));
-        centerSection.add(new JLabel(String.format("Macro Recall: %.4f  |  Micro Recall: %.4f", metadata.macroRecall, metadata.microRecall)));
+        centerSection.add(new JLabel(String.format("Macro F1: %.4f", metadata.macroF1)));
+        centerSection.add(new JLabel(String.format("Macro Recall: %.4f", metadata.macroRecall)));
         centerSection.add(new JLabel(String.format("Hamming Loss: %.4f", metadata.hammingLoss)));
+        
+        if (isBest) {
+            centerSection.add(Box.createVerticalStrut(4));
+            String metricName = selectionMetric.equals("hamming_loss") ? "Min Hamming Loss" : 
+                               selectionMetric.equals("macro_recall") ? "Max Macro Recall" : "Max Macro F1";
+            JLabel bestByLabel = new JLabel("(Best by: " + metricName + ")");
+            bestByLabel.setFont(bestByLabel.getFont().deriveFont(Font.ITALIC, 11f));
+            bestByLabel.setForeground(new Color(76, 175, 80));
+            centerSection.add(bestByLabel);
+        }
         
         // Right section: Action buttons
         JPanel actionsPanel = new JPanel();
@@ -946,9 +1034,7 @@ public class PredictionPanel extends JPanel {
         private String modelType;
         private String savedAt;
         private double macroF1;
-        private double microF1;
         private double macroRecall;
-        private double microRecall;
         private double hammingLoss;
     }
 }
