@@ -33,7 +33,10 @@ public class PredictionPanel extends JPanel {
             "multilable-prediction/output/reports",
             "software-change-type-prediction-main/output/reports"
     );
+    private static final String MODELS_DIR = "multilable-prediction/models";
     private JPanel runsListPanel;
+    private JPanel modelsListPanel;
+    private JTabbedPane contentTabs;
 
     public PredictionPanel() {
         instance = this;
@@ -41,35 +44,53 @@ public class PredictionPanel extends JPanel {
         setBorder(new EmptyBorder(10, 10, 10, 10));
         
         JPanel headerPanel = new JPanel(new BorderLayout());
-        JLabel title = new JLabel("Prediction Runs");
+        JLabel title = new JLabel("Training Runs & Saved Models");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 18f));
         title.setBorder(new EmptyBorder(0, 0, 8, 0));
         
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
-        JButton openReportButton = new JButton("Open Latest Report");
-        JButton deleteReportButton = new JButton("Delete Latest Report");
-        openReportButton.addActionListener(e -> handleOpenLatestReport());
-        deleteReportButton.addActionListener(e -> handleDeleteLatestReport());
-        buttonPanel.add(openReportButton);
-        buttonPanel.add(deleteReportButton);
+        JButton refreshButton = new JButton("Refresh");
+        refreshButton.addActionListener(e -> refreshAll());
+        buttonPanel.add(refreshButton);
         
         headerPanel.add(title, BorderLayout.WEST);
         headerPanel.add(buttonPanel, BorderLayout.EAST);
         add(headerPanel, BorderLayout.NORTH);
+        
+        // Create tabbed pane for Reports vs Models
+        contentTabs = new JTabbedPane();
+        
+        // Training Runs Tab
         runsListPanel = new JPanel();
         runsListPanel.setLayout(new BoxLayout(runsListPanel, BoxLayout.Y_AXIS));
         runsListPanel.setBorder(new EmptyBorder(0, 0, 20, 0));
-        JScrollPane scrollPane = new JScrollPane(runsListPanel);
-        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-        scrollPane.setBorder(BorderFactory.createEmptyBorder());
-        add(scrollPane, BorderLayout.CENTER);
-        refreshRunsList();
+        JScrollPane runsScrollPane = new JScrollPane(runsListPanel);
+        runsScrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        runsScrollPane.setBorder(BorderFactory.createEmptyBorder());
+        contentTabs.addTab("Training Runs", runsScrollPane);
+        
+        // Saved Models Tab
+        modelsListPanel = new JPanel();
+        modelsListPanel.setLayout(new BoxLayout(modelsListPanel, BoxLayout.Y_AXIS));
+        modelsListPanel.setBorder(new EmptyBorder(0, 0, 20, 0));
+        JScrollPane modelsScrollPane = new JScrollPane(modelsListPanel);
+        modelsScrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        modelsScrollPane.setBorder(BorderFactory.createEmptyBorder());
+        contentTabs.addTab("Saved Models", modelsScrollPane);
+        
+        add(contentTabs, BorderLayout.CENTER);
+        refreshAll();
     }
 
     public static void refreshPanel() {
         if (instance != null) {
-            instance.refreshRunsList();
+            instance.refreshAll();
         }
+    }
+    
+    private void refreshAll() {
+        refreshRunsList();
+        refreshModelsList();
     }
 
     private void refreshRunsList() {
@@ -97,6 +118,34 @@ public class PredictionPanel extends JPanel {
         }
         runsListPanel.revalidate();
         runsListPanel.repaint();
+    }
+    
+    private void refreshModelsList() {
+        modelsListPanel.removeAll();
+        File modelsDir = new File(MODELS_DIR);
+        
+        if (!modelsDir.exists() || !modelsDir.isDirectory()) {
+            modelsListPanel.add(new JLabel("No saved models found. Train a model first to enable persistence."));
+            modelsListPanel.revalidate();
+            modelsListPanel.repaint();
+            return;
+        }
+        
+        File[] modelDirs = modelsDir.listFiles(File::isDirectory);
+        if (modelDirs == null || modelDirs.length == 0) {
+            modelsListPanel.add(new JLabel("No saved models found."));
+        } else {
+            List<File> sortedModelDirs = Arrays.asList(modelDirs);
+            sortedModelDirs.sort(Comparator.comparingLong(File::lastModified).reversed());
+            
+            for (File modelDir : sortedModelDirs) {
+                ModelMetadata meta = buildModelMetadata(modelDir);
+                modelsListPanel.add(createModelEntry(meta));
+                modelsListPanel.add(Box.createVerticalStrut(12));
+            }
+        }
+        modelsListPanel.revalidate();
+        modelsListPanel.repaint();
     }
 
     private JPanel createRunEntry(RunMetadata metadata) {
@@ -421,6 +470,234 @@ public class PredictionPanel extends JPanel {
         }
         return new Color(90, 98, 110);
     }
+    
+    private ModelMetadata buildModelMetadata(File modelDir) {
+        ModelMetadata metadata = new ModelMetadata();
+        metadata.modelDir = modelDir;
+        metadata.runId = modelDir.getName();
+        metadata.displayName = metadata.runId;
+        
+        File metaFile = new File(modelDir, "metadata.json");
+        if (metaFile.exists()) {
+            try (FileReader reader = new FileReader(metaFile)) {
+                JSONObject json = new JSONObject(new JSONTokener(reader));
+                metadata.modelName = json.optString("model_name", "Unknown");
+                metadata.modelType = json.optString("model_type", "Unknown");
+                metadata.savedAt = json.optString("saved_at", null);
+                
+                JSONObject metricsJson = json.optJSONObject("metrics");
+                if (metricsJson != null) {
+                    metadata.macroF1 = metricsJson.optDouble("macro_f1", 0.0);
+                    metadata.microF1 = metricsJson.optDouble("micro_f1", 0.0);
+                    metadata.macroRecall = metricsJson.optDouble("macro_recall", 0.0);
+                    metadata.microRecall = metricsJson.optDouble("micro_recall", 0.0);
+                    metadata.hammingLoss = metricsJson.optDouble("hamming_loss", 0.0);
+                }
+            } catch (Exception ex) {
+                // Ignore, use defaults
+            }
+        }
+        
+        return metadata;
+    }
+    
+    private JPanel createModelEntry(ModelMetadata metadata) {
+        JPanel panel = new JPanel(new BorderLayout(10, 0));
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(200, 220, 240)),
+                new EmptyBorder(12, 14, 12, 14)
+        ));
+        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 130));
+
+        // Left section: Model name and type
+        JPanel leftSection = new JPanel();
+        leftSection.setOpaque(false);
+        leftSection.setLayout(new BoxLayout(leftSection, BoxLayout.Y_AXIS));
+        
+        JLabel nameLabel = new JLabel(metadata.modelName);
+        nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD, 15f));
+        nameLabel.setForeground(new Color(25, 118, 210));
+        
+        JLabel typeLabel = new JLabel(metadata.modelType);
+        typeLabel.setForeground(new Color(90, 98, 110));
+        
+        JLabel runIdLabel = new JLabel("Run ID: " + metadata.runId);
+        runIdLabel.setFont(runIdLabel.getFont().deriveFont(Font.ITALIC, 11f));
+        runIdLabel.setForeground(new Color(130, 138, 150));
+        
+        leftSection.add(nameLabel);
+        leftSection.add(Box.createVerticalStrut(4));
+        leftSection.add(typeLabel);
+        leftSection.add(Box.createVerticalStrut(4));
+        leftSection.add(runIdLabel);
+        
+        // Center section: Metrics
+        JPanel centerSection = new JPanel();
+        centerSection.setOpaque(false);
+        centerSection.setLayout(new BoxLayout(centerSection, BoxLayout.Y_AXIS));
+        
+        JLabel metricsTitle = new JLabel("Performance Metrics:");
+        metricsTitle.setFont(metricsTitle.getFont().deriveFont(Font.BOLD, 12f));
+        centerSection.add(metricsTitle);
+        centerSection.add(Box.createVerticalStrut(4));
+        
+        centerSection.add(new JLabel(String.format("Macro F1: %.4f  |  Micro F1: %.4f", metadata.macroF1, metadata.microF1)));
+        centerSection.add(new JLabel(String.format("Macro Recall: %.4f  |  Micro Recall: %.4f", metadata.macroRecall, metadata.microRecall)));
+        centerSection.add(new JLabel(String.format("Hamming Loss: %.4f", metadata.hammingLoss)));
+        
+        // Right section: Action buttons
+        JPanel actionsPanel = new JPanel();
+        actionsPanel.setOpaque(false);
+        actionsPanel.setLayout(new BoxLayout(actionsPanel, BoxLayout.Y_AXIS));
+        
+        JButton predictButton = new JButton("Run Prediction");
+        predictButton.setPreferredSize(new Dimension(140, 28));
+        predictButton.setMaximumSize(new Dimension(140, 28));
+        predictButton.addActionListener(e -> showPredictionDialog(metadata));
+
+        JButton deleteButton = new JButton("Delete Model");
+        deleteButton.setPreferredSize(new Dimension(140, 28));
+        deleteButton.setMaximumSize(new Dimension(140, 28));
+        deleteButton.addActionListener(e -> {
+            int confirm = JOptionPane.showConfirmDialog(this, 
+                "Delete model '" + metadata.runId + "'?", 
+                "Confirm Delete", 
+                JOptionPane.YES_NO_OPTION);
+            if (confirm == JOptionPane.YES_OPTION) {
+                deleteModel(metadata.modelDir);
+                refreshModelsList();
+            }
+        });
+
+        actionsPanel.add(predictButton);
+        actionsPanel.add(Box.createVerticalStrut(6));
+        actionsPanel.add(deleteButton);
+        actionsPanel.add(Box.createVerticalGlue());
+
+        panel.add(leftSection, BorderLayout.WEST);
+        panel.add(centerSection, BorderLayout.CENTER);
+        panel.add(actionsPanel, BorderLayout.EAST);
+        return panel;
+    }
+    
+    private void showPredictionDialog(ModelMetadata metadata) {
+        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Run Prediction", true);
+        dialog.setLayout(new BorderLayout(10, 10));
+        dialog.setSize(500, 300);
+        dialog.setLocationRelativeTo(this);
+        
+        JPanel contentPanel = new JPanel(new GridBagLayout());
+        contentPanel.setBorder(new EmptyBorder(15, 15, 15, 15));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(5, 5, 5, 5);
+        
+        int row = 0;
+        
+        // Model info
+        gbc.gridx = 0; gbc.gridy = row++; gbc.gridwidth = 2;
+        JLabel modelLabel = new JLabel("Model: " + metadata.modelName + " (" + metadata.runId + ")");
+        modelLabel.setFont(modelLabel.getFont().deriveFont(Font.BOLD));
+        contentPanel.add(modelLabel, gbc);
+        
+        gbc.gridwidth = 1;
+        
+        // Prediction mode
+        gbc.gridx = 0; gbc.gridy = row;
+        contentPanel.add(new JLabel("Prediction Mode:"), gbc);
+        gbc.gridx = 1;
+        JComboBox<String> modeCombo = new JComboBox<>(new String[]{"interactive", "csv", "row"});
+        contentPanel.add(modeCombo, gbc);
+        row++;
+        
+        // Input file (for CSV mode)
+        gbc.gridx = 0; gbc.gridy = row;
+        JLabel inputFileLabel = new JLabel("Input CSV File:");
+        contentPanel.add(inputFileLabel, gbc);
+        gbc.gridx = 1;
+        JTextField inputFileField = new JTextField();
+        contentPanel.add(inputFileField, gbc);
+        row++;
+        
+        // Row numbers (for row mode)
+        gbc.gridx = 0; gbc.gridy = row;
+        JLabel rowNumbersLabel = new JLabel("Row Numbers (comma-separated):");
+        contentPanel.add(rowNumbersLabel, gbc);
+        gbc.gridx = 1;
+        JTextField rowNumbersField = new JTextField("0,5,10");
+        contentPanel.add(rowNumbersField, gbc);
+        row++;
+        
+        // Enable/disable fields based on mode
+        modeCombo.addActionListener(e -> {
+            String mode = (String) modeCombo.getSelectedItem();
+            inputFileField.setEnabled("csv".equals(mode));
+            inputFileLabel.setEnabled("csv".equals(mode));
+            rowNumbersField.setEnabled("row".equals(mode));
+            rowNumbersLabel.setEnabled("row".equals(mode));
+        });
+        modeCombo.setSelectedIndex(0);
+        
+        // Buttons
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton runButton = new JButton("Run");
+        JButton cancelButton = new JButton("Cancel");
+        
+        runButton.addActionListener(e -> {
+            String mode = (String) modeCombo.getSelectedItem();
+            String inputFile = inputFileField.getText().trim();
+            String rowNumbers = rowNumbersField.getText().trim();
+            
+            dialog.dispose();
+            executePrediction(metadata.runId, mode, inputFile, rowNumbers);
+        });
+        
+        cancelButton.addActionListener(e -> dialog.dispose());
+        
+        buttonPanel.add(runButton);
+        buttonPanel.add(cancelButton);
+        
+        dialog.add(contentPanel, BorderLayout.CENTER);
+        dialog.add(buttonPanel, BorderLayout.SOUTH);
+        dialog.setVisible(true);
+    }
+    
+    private void executePrediction(String runId, String mode, String inputFile, String rowNumbers) {
+        // Build Python command
+        StringBuilder command = new StringBuilder();
+        command.append("python multilable-prediction/src/predict_with_model.py");
+        command.append(" --run_id ").append(runId);
+        command.append(" --mode ").append(mode);
+        
+        if ("csv".equals(mode) && !inputFile.isEmpty()) {
+            command.append(" --input \"").append(inputFile).append("\"");
+        } else if ("row".equals(mode) && !rowNumbers.isEmpty()) {
+            command.append(" --rows ").append(rowNumbers.replace(",", " "));
+        }
+        
+        // Execute command in terminal
+        try {
+            ProcessBuilder pb = new ProcessBuilder("cmd.exe", "/c", "start", "cmd.exe", "/k", command.toString());
+            pb.start();
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this, 
+                "Failed to start prediction: " + ex.getMessage(), 
+                "Error", 
+                JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
+    private void deleteModel(File modelDir) {
+        try {
+            Files.walk(modelDir.toPath())
+                .sorted(Comparator.reverseOrder())
+                .map(Path::toFile)
+                .forEach(File::delete);
+            JOptionPane.showMessageDialog(this, "Model deleted successfully", "Success", JOptionPane.INFORMATION_MESSAGE);
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this, "Failed to delete model: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
 
     private static class RunMetadata {
         private File runDir;
@@ -433,5 +710,19 @@ public class PredictionPanel extends JPanel {
         private boolean hasReport;
         private String status;
         private String hyperSummary;
+    }
+    
+    private static class ModelMetadata {
+        private File modelDir;
+        private String runId;
+        private String displayName;
+        private String modelName;
+        private String modelType;
+        private String savedAt;
+        private double macroF1;
+        private double microF1;
+        private double macroRecall;
+        private double microRecall;
+        private double hammingLoss;
     }
 }

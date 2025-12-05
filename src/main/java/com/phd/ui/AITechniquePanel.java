@@ -72,6 +72,12 @@ public class AITechniquePanel extends JPanel {
     private JCheckBox mlRunBalancedBox;
     private JSpinner mlBalancedTargetSpinner;
     
+    // Model Persistence controls
+    private JCheckBox mlPersistenceEnabledBox;
+    private JCheckBox mlSaveBestModelBox;
+    private JTextField mlCustomModelNameField;
+    private JComboBox<String> mlSelectionMetricCombo;
+    
     private JSpinner mlTopKSpinner;
     private JSpinner mlTopKPlotSpinner;
     private JSpinner mlMaxWordsPerLabelSpinner;
@@ -252,6 +258,7 @@ public class AITechniquePanel extends JPanel {
         tabs.addTab("Deep Learning", wrapTab(createDeepLearningGeneralPanel()));
         tabs.addTab("MLP", wrapTab(createMlpPanel()));
         tabs.addTab("CNN", wrapTab(createCnnPanel()));
+        tabs.addTab("Prediction & Models", new PredictionPanel());
         return tabs;
     }
 
@@ -272,6 +279,26 @@ public class AITechniquePanel extends JPanel {
         
         mlStatSigBox = new JCheckBox("Enable Statistical Significance Testing");
         addFullRow(panel, row++, mlStatSigBox);
+        
+        // Add separator
+        addFullRow(panel, row++, new JSeparator());
+        
+        // Model Persistence Section
+        JLabel persistenceLabel = new JLabel("Model Persistence:");
+        persistenceLabel.setFont(persistenceLabel.getFont().deriveFont(Font.BOLD));
+        addFullRow(panel, row++, persistenceLabel);
+        
+        mlPersistenceEnabledBox = new JCheckBox("Enable Model Persistence");
+        addFullRow(panel, row++, mlPersistenceEnabledBox);
+        
+        mlSaveBestModelBox = new JCheckBox("Save Best Model After Training");
+        addFullRow(panel, row++, mlSaveBestModelBox);
+        
+        mlCustomModelNameField = new JTextField(20);
+        addRow(panel, row++, "Custom Model Name (optional)", mlCustomModelNameField);
+        
+        mlSelectionMetricCombo = new JComboBox<>(new String[]{"macro_f1", "micro_f1", "macro_recall", "micro_recall", "hamming_loss"});
+        addRow(panel, row++, "Best Model Selection Metric", mlSelectionMetricCombo);
         
         return panel;
     }
@@ -990,6 +1017,13 @@ public class AITechniquePanel extends JPanel {
         mlCnnKernelSpinner.setValue(cnn.optInt("conv_kernel_size", 5));
         mlCnnDenseUnitsSpinner.setValue(cnn.optInt("dense_units", 128));
         mlCnnDropoutSpinner.setValue(cnn.optDouble("dropout", 0.5));
+        
+        // Load model persistence settings
+        JSONObject persistence = ensureObject(multiLabelConfig, "model_persistence");
+        mlPersistenceEnabledBox.setSelected(persistence.optBoolean("enabled", true));
+        mlSaveBestModelBox.setSelected(persistence.optBoolean("save_best_model", true));
+        mlCustomModelNameField.setText(persistence.optString("custom_model_name", ""));
+        mlSelectionMetricCombo.setSelectedItem(persistence.optString("selection_metric", "macro_f1"));
     }
 
     private void applyMultiClassValues() {
@@ -1152,6 +1186,18 @@ public class AITechniquePanel extends JPanel {
         cnn.put("conv_kernel_size", getInt(mlCnnKernelSpinner));
         cnn.put("dense_units", getInt(mlCnnDenseUnitsSpinner));
         cnn.put("dropout", getDouble(mlCnnDropoutSpinner));
+        
+        // Save model persistence settings
+        JSONObject persistence = ensureObject(multiLabelConfig, "model_persistence");
+        persistence.put("enabled", mlPersistenceEnabledBox.isSelected());
+        persistence.put("save_best_model", mlSaveBestModelBox.isSelected());
+        String customName = mlCustomModelNameField.getText().trim();
+        if (customName.isEmpty()) {
+            persistence.put("custom_model_name", JSONObject.NULL);
+        } else {
+            persistence.put("custom_model_name", customName);
+        }
+        persistence.put("selection_metric", mlSelectionMetricCombo.getSelectedItem());
     }
 
     private void persistMultiClassValues() {
