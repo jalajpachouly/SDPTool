@@ -134,7 +134,7 @@ def load_ui_config(config_path='configs/ui_config.json'):
         return None
     
     try:
-        with open(config_file, 'r') as f:
+        with open(config_file, 'r', encoding='utf-8') as f:
             config = json.load(f)
         print(f"[OK] Loaded UI configuration from: {config_path}")
         return config
@@ -303,18 +303,21 @@ def save_best_model_from_results(
     vectorizer,
     feature_selector,
     tokenizer_dict,
-    ui_config
+    ui_config,
+    cv_results=None
 ):
     """
     Identify and save the best performing model from training results.
+    Uses CV Mean F1 as selection criterion (same as HTML report).
     
     Args:
-        combined_results: List of result dictionaries from all models
+        combined_results: List of result dictionaries from all models (test results)
         trained_models: Dictionary mapping model names to trained model objects
         vectorizer: TfidfVectorizer used
         feature_selector: Chi-square selector (if used)
         tokenizer_dict: Dictionary mapping model names to tokenizers (for DL models)
         ui_config: UI configuration dictionary
+        cv_results: DataFrame with CV results (Model, Recall, F1 columns)
     """
     if not combined_results:
         print("[INFO] No models to save (no results available)")
@@ -329,49 +332,51 @@ def save_best_model_from_results(
         print("[INFO] Model persistence is disabled in configuration")
         return
     
-    selection_metric = model_persistence_config.get('selection_metric', 'macro_f1')
     custom_name = model_persistence_config.get('custom_model_name', None)
     
     print(f"\n{'='*80}")
     print(f"IDENTIFYING BEST MODEL FOR PERSISTENCE")
     print(f"{'='*80}")
-    print(f"Selection metric: {selection_metric}")
+    print(f"Selection criterion: CV Mean F1 (Fixed) - Same as HTML Report")
     
-    # Aggregate results by model (results are per-label, need to aggregate to per-model)
-    df_results = pd.DataFrame(combined_results)
-    
-    # Group by Model and calculate mean metrics
-    model_metrics = df_results.groupby('Model').agg({
-        'Recall': 'mean',
-        'F1': 'mean',
-        'Hamming Loss': 'first'  # Hamming loss is the same for all labels of a model
-    }).reset_index()
-    
-    model_metrics.columns = ['Model', 'Macro Recall', 'Macro F1', 'Hamming Loss']
-    
-    print("\nModel Performance Summary:")
-    print(model_metrics.to_string(index=False))
-    
-    # Map metric names
-    metric_column_map = {
-        'macro_f1': 'Macro F1',
-        'macro_recall': 'Macro Recall',
-        'hamming_loss': 'Hamming Loss'
-    }
-    
-    metric_column = metric_column_map.get(selection_metric, 'Macro F1')
-    
-    # For hamming loss, lower is better
-    if selection_metric == 'hamming_loss':
-        best_idx = model_metrics[metric_column].idxmin()
+    # Use CV results if available (same as HTML report logic)
+    if cv_results is not None and not cv_results.empty:
+        print("\nUsing Cross-Validation F1 scores (same as HTML report):")
+        print(cv_results.to_string(index=False))
+        
+        # Find model with highest CV Mean F1
+        best_idx = cv_results['F1'].idxmax()
+        best_result = cv_results.loc[best_idx]
+        model_name = best_result['Model']
+        best_f1 = best_result['F1']
+        
+        print(f"\nBest model: {model_name}")
+        print(f"Best CV Mean F1: {best_f1:.4f}")
     else:
-        best_idx = model_metrics[metric_column].idxmax()
-    
-    best_result = model_metrics.loc[best_idx]
-    model_name = best_result['Model']
-    
-    print(f"\nBest model: {model_name}")
-    print(f"Best {metric_column}: {best_result[metric_column]:.4f}")
+        print("\n[WARNING] CV results not available, falling back to test set Macro F1")
+        # Fallback: aggregate test results
+        df_results = pd.DataFrame(combined_results)
+        
+        # Group by Model and calculate mean metrics
+        model_metrics = df_results.groupby('Model').agg({
+            'Recall': 'mean',
+            'F1': 'mean',
+            'Hamming Loss': 'first'
+        }).reset_index()
+        
+        model_metrics.columns = ['Model', 'Macro Recall', 'Macro F1', 'Hamming Loss']
+        
+        print("\nModel Performance Summary (Test Set):")
+        print(model_metrics.to_string(index=False))
+        
+        # Use Macro F1 from test set
+        best_idx = model_metrics['Macro F1'].idxmax()
+        best_result = model_metrics.loc[best_idx]
+        model_name = best_result['Model']
+        best_f1 = best_result['Macro F1']
+        
+        print(f"\nBest model: {model_name}")
+        print(f"Best Test Macro F1: {best_f1:.4f}")
     
     # Get the trained model object
     if model_name not in trained_models:
@@ -387,12 +392,23 @@ def save_best_model_from_results(
     # Get tokenizer if deep learning model
     tokenizer = tokenizer_dict.get(model_name, None)
     
-    # Prepare metrics dictionary
-    metrics = {
-        'macro_f1': float(best_result['Macro F1']),
-        'macro_recall': float(best_result['Macro Recall']),
-        'hamming_loss': float(best_result['Hamming Loss'])
-    }
+    # Prepare metrics dictionary (column names differ between CV and test results)
+    if cv_results is not None and not cv_results.empty:
+        # CV results have columns: Model, Recall, F1
+        metrics = {
+            'cv_mean_f1': float(best_f1),  # Used for selection
+            'macro_f1': float(best_f1),
+            'macro_recall': float(best_result['Recall']),
+            'hamming_loss': 0.0  # Not available in CV results
+        }
+    else:
+        # Test results have columns: Model, Macro Recall, Macro F1, Hamming Loss
+        metrics = {
+            'cv_mean_f1': float(best_f1),  # Used for selection
+            'macro_f1': float(best_result['Macro F1']),
+            'macro_recall': float(best_result['Macro Recall']),
+            'hamming_loss': float(best_result['Hamming Loss'])
+        }
     
     # Save the model
     persistence = ModelPersistence()
@@ -593,6 +609,7 @@ def main(data_type='Unbalanced'):
         print(f"[INFO] RandomForest enabled (n_estimators={rf_n_estimators})")
 
     # Cross-Validation for Traditional Models (feature-flagged)
+    cv_results_df = None  # Store CV results for model selection
     if run_cross_validation and classifiers_to_run:
         print("\n" + "="*80)
         print("CROSS-VALIDATION FOR TRADITIONAL ML MODELS")
@@ -602,9 +619,9 @@ def main(data_type='Unbalanced'):
             print(f"\n===== Cross-Validating {model_name} =====")
             cv_scores = cross_validation_score_multilabel(clf, X_train_tfidf, y_train_np)
             meth_cv.append({'Model': model_name, 'Recall': cv_scores['Recall'], 'F1': cv_scores['F1']})
-        meth_cv = pd.DataFrame(meth_cv)
+        cv_results_df = pd.DataFrame(meth_cv)
         print("\nCross-validation results:")
-        print(meth_cv[['Model', 'Recall', 'F1']])
+        print(cv_results_df[['Model', 'Recall', 'F1']])
 
     # Evaluate Classifiers on Test Set
     if classifiers_to_run:
@@ -750,6 +767,7 @@ def main(data_type='Unbalanced'):
     # Save best model if persistence is enabled
     save_best_model_from_results(
         combined_results=combined_results,
+        cv_results=cv_results_df,  # Pass CV results for model selection
         trained_models=trained_models,
         vectorizer=vector,  # Fixed: use 'vector' from prepare_data()
         feature_selector=selected_indices,  # Pass selected feature indices for prediction
@@ -952,7 +970,7 @@ if __name__ == "__main__":
         
         metadata_path = base_output_dir / 'metadata.json'
         with open(metadata_path, 'w', encoding='utf-8') as f:
-            json.dump(metadata, f, indent=2)
+            json.dump(metadata, f, indent=2, ensure_ascii=False)
         print(f"[INFO] Metadata saved: {metadata_path}")
     except Exception as e:
         print(f"[WARNING] Could not create metadata file: {e}")

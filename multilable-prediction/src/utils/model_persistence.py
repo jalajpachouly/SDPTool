@@ -129,13 +129,13 @@ class ModelPersistence:
         
         # Save metadata
         metadata_path = model_dir / 'metadata.json'
-        with open(metadata_path, 'w') as f:
-            json.dump(metadata, f, indent=2)
+        with open(metadata_path, 'w', encoding='utf-8') as f:
+            json.dump(metadata, f, indent=2, ensure_ascii=False)
         
         # Save config copy
         config_path = model_dir / 'training_config.json'
-        with open(config_path, 'w') as f:
-            json.dump(config, f, indent=2)
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
         
         print(f"\n{'='*80}")
         print(f"MODEL SAVED SUCCESSFULLY")
@@ -167,7 +167,7 @@ class ModelPersistence:
         
         # Load metadata
         metadata_path = model_dir / 'metadata.json'
-        with open(metadata_path, 'r') as f:
+        with open(metadata_path, 'r', encoding='utf-8') as f:
             metadata = json.load(f)
         
         # Load model
@@ -199,7 +199,7 @@ class ModelPersistence:
         
         # Load config
         config_path = model_dir / 'training_config.json'
-        with open(config_path, 'r') as f:
+        with open(config_path, 'r', encoding='utf-8') as f:
             config = json.load(f)
         
         print(f"\n{'='*80}")
@@ -238,7 +238,7 @@ class ModelPersistence:
             if model_dir.is_dir():
                 metadata_path = model_dir / 'metadata.json'
                 if metadata_path.exists():
-                    with open(metadata_path, 'r') as f:
+                    with open(metadata_path, 'r', encoding='utf-8') as f:
                         metadata = json.load(f)
                     models.append({
                         'run_id': metadata['run_id'],

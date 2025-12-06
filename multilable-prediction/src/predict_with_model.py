@@ -392,7 +392,7 @@ def main():
     # Output as JSON if requested
     if args.json:
         print("JSON_OUTPUT_START")
-        print(json.dumps(results, indent=2))
+        print(json.dumps(results, indent=2, ensure_ascii=False))
         print("JSON_OUTPUT_END")
         return
     
@@ -429,8 +429,8 @@ def main():
     
     # Save to file if requested
     if args.output:
-        with open(args.output, 'w') as f:
-            json.dump(results, f, indent=2)
+        with open(args.output, 'w', encoding='utf-8') as f:
+            json.dump(results, f, indent=2, ensure_ascii=False)
         print(f"\nResults saved to: {args.output}")
     
     # Wait for user input before closing (only in non-JSON mode)

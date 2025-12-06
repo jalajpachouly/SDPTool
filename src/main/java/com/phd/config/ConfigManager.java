@@ -4,6 +4,7 @@ import org.json.JSONObject;
 import org.json.JSONTokener;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Centralized configuration manager for multi-label and multi-class experiments.
@@ -72,7 +73,7 @@ public class ConfigManager {
      * Save config to file
      */
     private static void saveConfig(JSONObject config, String path) {
-        try (FileWriter writer = new FileWriter(path)) {
+        try (FileWriter writer = new FileWriter(path, StandardCharsets.UTF_8)) {
             writer.write(config.toString(2));
             System.out.println("✓ Config saved to: " + new java.io.File(path).getAbsolutePath());
         } catch (Exception e) {

@@ -551,21 +551,8 @@ public class PredictionPanel extends JPanel {
     }
     
     private String getSelectionMetricFromConfig() {
-        try {
-            File configFile = new File("multilable-prediction/configs/ui_config.json");
-            if (configFile.exists()) {
-                try (FileReader reader = new FileReader(configFile)) {
-                    JSONObject config = new JSONObject(new JSONTokener(reader));
-                    JSONObject modelPersistence = config.optJSONObject("model_persistence");
-                    if (modelPersistence != null) {
-                        return modelPersistence.optString("selection_metric", "macro_f1");
-                    }
-                }
-            }
-        } catch (Exception ex) {
-            // Ignore, use default
-        }
-        return "macro_f1"; // Default
+        // Fixed criterion: Always use CV Mean F1
+        return "cv_mean_f1";
     }
     
     private ModelMetadata determineBestModel(List<ModelMetadata> models, String selectionMetric) {
@@ -575,22 +562,10 @@ public class PredictionPanel extends JPanel {
         
         ModelMetadata best = models.get(0);
         
+        // Fixed criterion: Always use Macro F1 (higher is better)
         for (ModelMetadata model : models) {
-            if (selectionMetric.equals("hamming_loss")) {
-                // Lower is better for hamming loss
-                if (model.hammingLoss < best.hammingLoss) {
-                    best = model;
-                }
-            } else if (selectionMetric.equals("macro_recall")) {
-                // Higher is better for recall
-                if (model.macroRecall > best.macroRecall) {
-                    best = model;
-                }
-            } else { // Default: macro_f1
-                // Higher is better for F1
-                if (model.macroF1 > best.macroF1) {
-                    best = model;
-                }
+            if (model.macroF1 > best.macroF1) {
+                best = model;
             }
         }
         
@@ -665,9 +640,7 @@ public class PredictionPanel extends JPanel {
         
         if (isBest) {
             centerSection.add(Box.createVerticalStrut(4));
-            String metricName = selectionMetric.equals("hamming_loss") ? "Min Hamming Loss" : 
-                               selectionMetric.equals("macro_recall") ? "Max Macro Recall" : "Max Macro F1";
-            JLabel bestByLabel = new JLabel("(Best by: " + metricName + ")");
+            JLabel bestByLabel = new JLabel("(Best by: CV Mean F1)");
             bestByLabel.setFont(bestByLabel.getFont().deriveFont(Font.ITALIC, 11f));
             bestByLabel.setForeground(new Color(76, 175, 80));
             centerSection.add(bestByLabel);

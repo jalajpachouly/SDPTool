@@ -76,7 +76,6 @@ public class AITechniquePanel extends JPanel {
     private JCheckBox mlPersistenceEnabledBox;
     private JCheckBox mlSaveBestModelBox;
     private JTextField mlCustomModelNameField;
-    private JComboBox<String> mlSelectionMetricCombo;
     
     private JSpinner mlTopKSpinner;
     private JSpinner mlTopKPlotSpinner;
@@ -296,8 +295,7 @@ public class AITechniquePanel extends JPanel {
         mlCustomModelNameField = new JTextField(20);
         addRow(panel, row++, "Custom Model Name (optional)", mlCustomModelNameField);
         
-        mlSelectionMetricCombo = new JComboBox<>(new String[]{"macro_f1", "micro_f1", "macro_recall", "micro_recall", "hamming_loss"});
-        addRow(panel, row++, "Best Model Selection Metric", mlSelectionMetricCombo);
+        // Note: Best Model Selection Metric is now fixed to CV Mean F1
         
         return panel;
     }
@@ -1028,7 +1026,7 @@ public class AITechniquePanel extends JPanel {
         mlPersistenceEnabledBox.setSelected(persistence.optBoolean("enabled", true));
         mlSaveBestModelBox.setSelected(persistence.optBoolean("save_best_model", true));
         mlCustomModelNameField.setText(persistence.optString("custom_model_name", ""));
-        mlSelectionMetricCombo.setSelectedItem(persistence.optString("selection_metric", "macro_f1"));
+        // selection_metric is now fixed to CV Mean F1
     }
 
     private void applyMultiClassValues() {
@@ -1202,7 +1200,7 @@ public class AITechniquePanel extends JPanel {
         } else {
             persistence.put("custom_model_name", customName);
         }
-        persistence.put("selection_metric", mlSelectionMetricCombo.getSelectedItem());
+        // selection_metric is now fixed to CV Mean F1 (not configurable)
     }
 
     private void persistMultiClassValues() {

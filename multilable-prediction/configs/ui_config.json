@@ -54,7 +54,7 @@
         "run_cross_validation": true,
         "validation_split": 0.2,
         "epochs": 100,
-        "enabled": true,
+        "enabled": false,
         "early_stopping_patience": 5,
         "cv_epochs": 100,
         "architecture": {
@@ -71,7 +71,7 @@
         "embedding_dim": 100,
         "cv_n_splits": 10,
         "run_cross_validation": true,
-        "enabled": true,
+        "enabled": false,
         "early_stopping_patience": 10,
         "max_len": 100,
         "max_words": 5000,
@@ -82,7 +82,7 @@
         "conv_kernel_size": 5,
         "cv_epochs": 10
       },
-      "enabled": true
+      "enabled": false
     }
   },
   "experiment_name": "Run-1",
@@ -133,7 +133,6 @@
   },
   "problem_type": "multi_label",
   "model_persistence": {
-    "selection_metric": "macro_f1",
     "save_best_model": true,
     "custom_model_name": "Model-with-100-sample",
     "enabled": true
