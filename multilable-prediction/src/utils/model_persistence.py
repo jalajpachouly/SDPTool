@@ -172,13 +172,36 @@ class ModelPersistence:
         
         # Load model
         model_type = metadata['model_type']
+        model_path_h5 = model_dir / 'model.h5'
+        model_path_pkl = model_dir / 'model.pkl'
+        
         if model_type == 'deep_learning':
-            from tensorflow.keras.models import load_model
-            model_path = model_dir / 'model.h5'
-            model = load_model(str(model_path))
+            # Try to load as Keras model
+            if model_path_h5.exists():
+                try:
+                    from tensorflow.keras.models import load_model
+                    model = load_model(str(model_path_h5))
+                except ImportError as e:
+                    raise ImportError(
+                        f"Failed to load TensorFlow/Keras model. "
+                        f"This model requires TensorFlow which may have DLL issues on Windows. "
+                        f"Please install Microsoft Visual C++ Redistributable 2015-2022 (x64). "
+                        f"Download from: https://aka.ms/vs/17/release/vc_redist.x64.exe\n"
+                        f"Or retrain using only traditional ML models (disable MLP/CNN)."
+                    ) from e
+            elif model_path_pkl.exists():
+                # Fallback: metadata says deep_learning but only .pkl exists (corrupted save)
+                print(f"[WARNING] Model metadata indicates deep_learning but only .pkl file found.")
+                print(f"[WARNING] This model may have been saved incorrectly. Consider retraining.")
+                model = joblib.load(model_path_pkl)
+            else:
+                raise FileNotFoundError(f"Model file not found: {model_path_h5}")
         else:
-            model_path = model_dir / 'model.pkl'
-            model = joblib.load(model_path)
+            # Traditional ML model
+            if model_path_pkl.exists():
+                model = joblib.load(model_path_pkl)
+            else:
+                raise FileNotFoundError(f"Model file not found: {model_path_pkl}")
         
         # Load vectorizer
         vectorizer_path = model_dir / 'vectorizer.pkl'

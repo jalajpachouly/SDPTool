@@ -386,8 +386,9 @@ def save_best_model_from_results(
     
     model = trained_models[model_name]
     
-    # Determine model type
-    model_type = 'deep_learning' if model_name in ['MLP', 'CNN'] else 'traditional_ml'
+    # Determine model type (handle names with data_type suffix like "CNN (Balanced)")
+    base_model_name = model_name.split(' (')[0]  # Extract base name before suffix
+    model_type = 'deep_learning' if base_model_name in ['MLP', 'CNN'] else 'traditional_ml'
     
     # Get tokenizer if deep learning model
     tokenizer = tokenizer_dict.get(model_name, None)
@@ -660,6 +661,13 @@ def main(data_type='Unbalanced'):
             print(f"\nMLP Cross-validation results:")
             print(f"Recall: {deep_learning_cv_scores['Recall']:.4f}")
             print(f"F1-score: {deep_learning_cv_scores['F1']:.4f}")
+            
+            # Add MLP CV results to cv_results_df
+            mlp_cv_row = pd.DataFrame([{'Model': 'MLP', 'Recall': deep_learning_cv_scores['Recall'], 'F1': deep_learning_cv_scores['F1']}])
+            if cv_results_df is not None:
+                cv_results_df = pd.concat([cv_results_df, mlp_cv_row], ignore_index=True)
+            else:
+                cv_results_df = mlp_cv_row
 
         # Train MLP Model on Entire Training Set
         print("\n===== Training MLP Model on Entire Training Set =====")
@@ -717,6 +725,13 @@ def main(data_type='Unbalanced'):
             print(f"\nCNN Cross-validation results:")
             print(f"Recall: {cnn_cv_scores['Recall']:.4f}")
             print(f"F1-score: {cnn_cv_scores['F1']:.4f}")
+            
+            # Add CNN CV results to cv_results_df
+            cnn_cv_row = pd.DataFrame([{'Model': 'CNN', 'Recall': cnn_cv_scores['Recall'], 'F1': cnn_cv_scores['F1']}])
+            if cv_results_df is not None:
+                cv_results_df = pd.concat([cv_results_df, cnn_cv_row], ignore_index=True)
+            else:
+                cv_results_df = cnn_cv_row
 
         # Train CNN Model on Entire Training Set
         print("\n===== Training CNN Model on Entire Training Set =====")
@@ -846,6 +861,8 @@ if __name__ == "__main__":
     class TeeOutput:
         def __init__(self, *files):
             self.files = files
+            # Add encoding attribute for TensorFlow/Keras compatibility
+            self.encoding = getattr(files[0], 'encoding', 'utf-8')
         def write(self, text):
             for f in self.files:
                 f.write(text)

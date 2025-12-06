@@ -23,7 +23,7 @@ public class ConfigManager {
     public static void initialize() {
         multiLabelConfig = loadConfig(MULTILABEL_CONFIG_PATH, "multi_label");
         multiClassConfig = loadConfig(MULTICLASS_CONFIG_PATH, "multi_class");
-        System.out.println("✓ ConfigManager initialized");
+        System.out.println("[OK] ConfigManager initialized");
         System.out.println("  Multi-label config path: " + new java.io.File(MULTILABEL_CONFIG_PATH).getAbsolutePath());
         System.out.println("  Multi-class config path: " + new java.io.File(MULTICLASS_CONFIG_PATH).getAbsolutePath());
     }
@@ -75,9 +75,9 @@ public class ConfigManager {
     private static void saveConfig(JSONObject config, String path) {
         try (FileWriter writer = new FileWriter(path, StandardCharsets.UTF_8)) {
             writer.write(config.toString(2));
-            System.out.println("✓ Config saved to: " + new java.io.File(path).getAbsolutePath());
+            System.out.println("[OK] Config saved to: " + new java.io.File(path).getAbsolutePath());
         } catch (Exception e) {
-            System.err.println("✗ Failed to save config to " + path + ": " + e.getMessage());
+            System.err.println("[ERROR] Failed to save config to " + path + ": " + e.getMessage());
             throw new RuntimeException("Failed to save configuration: " + e.getMessage(), e);
         }
     }

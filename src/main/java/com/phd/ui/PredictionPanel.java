@@ -596,7 +596,7 @@ public class PredictionPanel extends JPanel {
             nameRow.setOpaque(false);
             nameRow.add(nameLabel);
             
-            JLabel bestBadge = new JLabel("★ BEST");
+            JLabel bestBadge = new JLabel("BEST");
             bestBadge.setFont(bestBadge.getFont().deriveFont(Font.BOLD, 11f));
             bestBadge.setForeground(Color.WHITE);
             bestBadge.setBackground(new Color(76, 175, 80)); // Green

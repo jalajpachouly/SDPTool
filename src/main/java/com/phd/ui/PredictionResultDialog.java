@@ -170,7 +170,7 @@ public class PredictionResultDialog extends JDialog {
         // Get exact match status for header
         if (pred.containsKey("exact_match")) {
             boolean exactMatch = (Boolean) pred.get("exact_match");
-            JLabel matchLabel = new JLabel(exactMatch ? "│ ✓ Exact Match" : "│ ✗ No Match");
+            JLabel matchLabel = new JLabel(exactMatch ? "| Exact Match" : "| No Match");
             matchLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
             matchLabel.setForeground(exactMatch ? new Color(0, 128, 0) : new Color(200, 0, 0));
             headerPanel.add(matchLabel);
