@@ -761,21 +761,19 @@ def main(data_type='Unbalanced'):
         visualize_f1_scores(df_results, data_type)
 
     # =============================================================================
-    # MODEL PERSISTENCE (Feature-Flagged)
+    # RETURN RESULTS FOR CROSS-RUN COMPARISON
     # =============================================================================
     
-    # Save best model if persistence is enabled
-    save_best_model_from_results(
-        combined_results=combined_results,
-        cv_results=cv_results_df,  # Pass CV results for model selection
-        trained_models=trained_models,
-        vectorizer=vector,  # Fixed: use 'vector' from prepare_data()
-        feature_selector=selected_indices,  # Pass selected feature indices for prediction
-        tokenizer_dict=tokenizer_dict,
-        ui_config=ui_config
-    )
-
-    print("\nAll processes completed successfully.")
+    # Return results for potential cross-run model selection
+    return {
+        'combined_results': combined_results,
+        'cv_results': cv_results_df,
+        'trained_models': trained_models,
+        'vectorizer': vector,
+        'feature_selector': selected_indices,
+        'tokenizer_dict': tokenizer_dict,
+        'data_type': data_type
+    }
 
 
 if __name__ == "__main__":
@@ -876,21 +874,80 @@ if __name__ == "__main__":
         print(f"Run Balanced Data: {run_balanced}")
         print("="*80)
         
+        # Collect results from all runs
+        all_run_results = []
+        
         if run_unbalanced:
             print("\nProcessing with Unbalanced Data.")
-            main(data_type='Unbalanced')
+            unbalanced_results = main(data_type='Unbalanced')
+            if unbalanced_results:
+                all_run_results.append(unbalanced_results)
         else:
             print("\n[INFO] Unbalanced data processing disabled by feature flag")
         
         if run_balanced:
             print("\n---------------------------------------------------------")
             print("\nProcessing with Balanced Data.")
-            main(data_type='Balanced')
+            balanced_results = main(data_type='Balanced')
+            if balanced_results:
+                all_run_results.append(balanced_results)
         else:
             print("\n[INFO] Balanced data processing disabled by feature flag")
         
         if not run_unbalanced and not run_balanced:
             print("\n[WARNING] Both data types are disabled. No processing performed.")
+        
+        # =============================================================================
+        # SAVE ONLY ONE BEST MODEL ACROSS ALL RUNS
+        # =============================================================================
+        
+        if all_run_results:
+            print("\n" + "="*80)
+            print("SELECTING BEST MODEL ACROSS ALL RUNS")
+            print("="*80)
+            
+            # Combine all results and CV scores from all runs
+            all_combined_results = []
+            all_cv_results = []
+            all_trained_models = {}
+            vectorizer = None
+            feature_selector = None
+            tokenizer_dict = {}
+            
+            for run_result in all_run_results:
+                all_combined_results.extend(run_result['combined_results'])
+                if run_result['cv_results'] is not None and not run_result['cv_results'].empty:
+                    # Add data_type suffix to model names for identification
+                    cv_df = run_result['cv_results'].copy()
+                    cv_df['Model'] = cv_df['Model'] + f" ({run_result['data_type']})"
+                    all_cv_results.append(cv_df)
+                
+                # Update trained models with data_type suffix
+                for model_name, model_obj in run_result['trained_models'].items():
+                    all_trained_models[f"{model_name} ({run_result['data_type']})"] = model_obj
+                
+                # Use vectorizer and feature_selector from any run (they're the same)
+                if vectorizer is None:
+                    vectorizer = run_result['vectorizer']
+                    feature_selector = run_result['feature_selector']
+                
+                # Merge tokenizer dicts
+                for model_name, tokenizer in run_result['tokenizer_dict'].items():
+                    tokenizer_dict[f"{model_name} ({run_result['data_type']})"] = tokenizer
+            
+            # Combine all CV results
+            combined_cv_results = pd.concat(all_cv_results, ignore_index=True) if all_cv_results else None
+            
+            # Save the single best model
+            save_best_model_from_results(
+                combined_results=all_combined_results,
+                cv_results=combined_cv_results,
+                trained_models=all_trained_models,
+                vectorizer=vectorizer,
+                feature_selector=feature_selector,
+                tokenizer_dict=tokenizer_dict,
+                ui_config=ui_config
+            )
         
         print("\n" + "="*80)
         print("PIPELINE COMPLETED")

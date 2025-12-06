@@ -1,3 +1,4 @@
+// -*- coding: utf-8 -*-
 package com.phd.ui;
 
 import org.json.JSONArray;
