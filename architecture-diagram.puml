@@ -1,0 +1,156 @@
+@startuml SDPTool_Architecture
+left to right direction
+
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam shadowing false
+
+' Increased spacing for better layout
+skinparam nodesep 60
+skinparam ranksep 80
+
+' ====== Professional, Neutral Styling ======
+skinparam package {
+  BackgroundColor<<UI>> #D6EAF8
+  BackgroundColor<<Processing>> #FCE4D6
+  BackgroundColor<<ML>> #D5F4E6
+  BackgroundColor #ECF0F1
+  BorderColor #2C3E50
+  BorderThickness 3
+  FontSize 17
+  FontStyle bold
+  FontColor #000000
+}
+
+skinparam component {
+  BackgroundColor #FFFFFF
+  BorderColor #34495E
+  BorderThickness 2
+  FontSize 15
+  FontStyle bold
+  FontColor #000000
+}
+
+skinparam database {
+  BackgroundColor #FAF3D0
+  BorderColor #8E5B2D
+  BorderThickness 3
+  FontSize 15
+  FontStyle bold
+  FontColor #000000
+}
+
+skinparam cloud {
+  BackgroundColor #F4F6F8
+  BorderColor #5D6D7E
+  BorderThickness 2
+  FontSize 13
+  FontStyle bold
+  FontColor #000000
+}
+
+skinparam storage {
+  BackgroundColor #F7F7FB
+  BorderColor #5B2C6F
+  BorderThickness 2
+  FontSize 15
+  FontStyle bold
+  FontColor #000000
+}
+
+skinparam arrow {
+  Color #2C3E50
+  Thickness 3
+  FontSize 14
+  FontStyle bold
+}
+
+title <size:24><b>SDPTool Architecture</b></size>
+
+' =======================
+' User Interface Layer (Leftmost)
+' =======================
+package "User Interface\nLayer" as ui_layer <<UI>> {
+  component "Configuration\nPanel" as config #FFFFFF
+  component "Data Collection\nPanel" as collect #FFFFFF
+  component "ML Training\nPanel" as ml #FFFFFF
+  component "Prediction\nPanel" as viz #FFFFFF
+}
+
+' =======================
+' GitHub (Top Center)
+' =======================
+cloud "GitHub\nRepos" as github #F4F6F8 {
+  component "Issues" as issues #FFFFFF
+  component "Labels" as labels #FFFFFF
+}
+
+' =======================
+' Data Processing Layer (Center)
+' =======================
+package "Data Processing\nLayer" as proc_layer <<Processing>> {
+  component "API Client" as api #FFFFFF
+  component "Data Fetcher" as fetcher #FFFFFF
+  component "Text Cleaner" as cleaner #FFFFFF
+  component "Validator" as validator #FFFFFF
+}
+
+' =======================
+' Database (Center-Left)
+' =======================
+database "SQLite\nDatabase" as db #FAF3D0
+
+' =======================
+' CSV Generator (Center)
+' =======================
+component "CSV\nGenerator" as csvgen #FFFFFF
+
+' =======================
+' Datasets (Center-Right)
+' =======================
+storage "Datasets" as dataset #F7F7FB {
+  file "MLDD.csv" as mldd
+  file "MCDD.csv" as mcdd
+}
+
+' =======================
+' ML Backend (Right)
+' =======================
+package "ML Backend\n(Python)" as ml_layer <<ML>> {
+  component "Feature\nEngineering" as feature #FFFFFF
+  component "Model\nTraining" as train #FFFFFF
+  component "Evaluation" as eval #FFFFFF
+}
+
+' =======================
+' Reports (Rightmost)
+' =======================
+storage "Output\nReports" as reports #FDEEE4
+
+' =======================
+' Horizontal Flow Connections
+' =======================
+config --> api : 1. Configure
+collect --> api : 2. Trigger
+
+api --> fetcher : 3. Request
+fetcher --> github : 4. API Call
+github --> fetcher : 5. Data
+
+fetcher --> db : 6. Store
+
+db --> cleaner : 7. Extract
+cleaner --> validator : 8. Clean
+validator --> db : 9. Save
+
+db --> csvgen : 10. Query
+csvgen --> dataset : 11. Generate
+
+feature --> train : 13. Selected Features
+train --> eval : 14. Model Evaluation
+eval --> reports : 15. Results
+
+reports --> viz : 16. Display
+ml --> feature : 12. Control
+
+@enduml

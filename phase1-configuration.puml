@@ -1,0 +1,46 @@
+@startuml Phase1_Configuration
+
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam shadowing false
+
+skinparam activity {
+  BackgroundColor #D6EAF8
+  BorderColor #34495E
+  FontColor #2C3E50
+  ArrowColor #34495E
+  ArrowThickness 2
+}
+
+title Phase 1: Configuration
+
+start
+
+:Open SDPTool;
+
+:Set Repository Details;
+note right
+  • Repository name
+  • OAuth token
+  • Issue range
+end note
+
+:Configure Database;
+note right
+  • SQLite path
+  • Auto-create option
+end note
+
+:Define Label Filters;
+note right
+  • Color-based filtering
+  • Exclude incomplete labels
+  • Module selection
+end note
+
+:Save Configuration;
+
+stop
+
+@enduml

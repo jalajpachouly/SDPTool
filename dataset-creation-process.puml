@@ -1,0 +1,62 @@
+@startuml Dataset_Creation_Process
+left to right direction
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+
+skinparam activity {
+  BackgroundColor #E8F4F8
+  BorderColor #34495E
+  FontColor #2C3E50
+  FontSize 12
+  ArrowColor #34495E
+  ArrowThickness 2
+  DiamondBackgroundColor #FFF9E6
+}
+
+title Dataset Creation Workflow for Software Defect Prediction
+
+start
+
+:Configuration\n====\nGitHub Repository\nLabel Filters\nDatabase Path] #D6EAF8
+
+-> Repository Setup;
+
+:Data Collection\n====\nFetch Issues\nFetch Labels\nFetch Comments\nFetch Code Changes] #D5F4E6
+
+-> Raw Data;
+
+:Preprocessing\n====\nText Cleaning\nNormalization\nAggregation] #FCE4D6
+
+-> Processed Data;
+
+:Validation\n====\nRemove Duplicates\nFilter Empty Records\nLabel Consistency] #FFF3CD
+
+if (Valid?) then (yes)
+  :CSV Generation\n====\nEncode Labels\nExport Files] #E8DAEF
+  
+  -> Dataset;
+  
+  :Quality Assurance\n====\nStatistics\nReports\nMetadata] #D5F5E3
+  
+  #C8E6C9:Ready for ML]
+  
+  stop
+else (no)
+  #FFCCCC:Manual Review]
+  stop
+endif
+
+legend bottom right
+  **Workflow Phases**
+  <#D6EAF8> Configuration
+  <#D5F4E6> Data Collection
+  <#FCE4D6> Preprocessing
+  <#FFF3CD> Validation
+  <#E8DAEF> CSV Generation
+  <#D5F5E3> Quality Assurance
+endlegend
+
+@enduml

@@ -1,0 +1,48 @@
+@startuml Phase6_QualityAssurance
+
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam shadowing false
+
+skinparam activity {
+  BackgroundColor #D5F5E3
+  BorderColor #34495E
+  FontColor #2C3E50
+  ArrowColor #34495E
+  ArrowThickness 2
+}
+
+title Phase 6: Quality Assurance
+
+start
+
+:Generate Statistics;
+note right
+  • Total records
+  • Label distribution
+  • Text length stats
+  • Class balance
+end note
+
+:Create Quality Report;
+note right
+  • Sample data
+  • Distribution charts
+  • Word clouds
+  • Correlation matrix
+end note
+
+:Save Metadata;
+note right
+  • Timestamp
+  • Repository info
+  • Label counts
+  • Filter criteria
+end note
+
+#C8E6C9:Dataset Ready for ML;
+
+stop
+
+@enduml

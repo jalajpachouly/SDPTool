@@ -1,0 +1,49 @@
+@startuml Phase4_Validation
+
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam shadowing false
+
+skinparam activity {
+  BackgroundColor #FFF3CD
+  BorderColor #34495E
+  FontColor #2C3E50
+  ArrowColor #34495E
+  ArrowThickness 2
+  DiamondBackgroundColor #FFF9E6
+}
+
+title Phase 4: Data Validation
+
+start
+
+:Remove Duplicates;
+note right
+  Check unique issue IDs
+end note
+
+:Filter Empty Records;
+note right
+  Remove records with:
+  • No text
+  • Missing labels
+end note
+
+:Validate Labels;
+note right
+  • Check label existence
+  • Verify structure
+  • Detect conflicts
+end note
+
+if (Valid?) then (yes)
+  #C8E6C9:Mark as Valid;
+else (no)
+  #FFCCCC:Flag for Review;
+  stop
+endif
+
+stop
+
+@enduml

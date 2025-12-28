@@ -10,6 +10,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -39,7 +40,7 @@ public class DataExporter {
         File outputFile = showSaveDialog(parent, "multilabel_dataset_" + getTimestamp() + ".csv");
         if (outputFile == null) return;
         
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile))) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile, StandardCharsets.UTF_8))) {
             // Get all unique label names first
             Set<String> allLabels = getAllLabelNames();
             List<String> sortedLabels = new ArrayList<>(allLabels);
@@ -93,7 +94,7 @@ public class DataExporter {
         File outputFile = showSaveDialog(parent, "multiclass_dataset_" + getTimestamp() + ".csv");
         if (outputFile == null) return;
         
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile))) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile, StandardCharsets.UTF_8))) {
             // Write header
             writer.write("report,target");
             writer.newLine();

@@ -10,6 +10,8 @@ __pycache__/
 # Generated experiment artifacts
 multilable-prediction/output/
 software-change-type-prediction-main/output/
+multilable-prediction/models/
+software-change-type-prediction-main/models/
 *.png
 *.csv
 *.log

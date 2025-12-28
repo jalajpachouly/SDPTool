@@ -72,6 +72,11 @@ public class AITechniquePanel extends JPanel {
     private JCheckBox mlRunBalancedBox;
     private JSpinner mlBalancedTargetSpinner;
     
+    // Model Persistence controls
+    private JCheckBox mlPersistenceEnabledBox;
+    private JCheckBox mlSaveBestModelBox;
+    private JTextField mlCustomModelNameField;
+    
     private JSpinner mlTopKSpinner;
     private JSpinner mlTopKPlotSpinner;
     private JSpinner mlMaxWordsPerLabelSpinner;
@@ -272,6 +277,25 @@ public class AITechniquePanel extends JPanel {
         
         mlStatSigBox = new JCheckBox("Enable Statistical Significance Testing");
         addFullRow(panel, row++, mlStatSigBox);
+        
+        // Add separator
+        addFullRow(panel, row++, new JSeparator());
+        
+        // Model Persistence Section
+        JLabel persistenceLabel = new JLabel("Model Persistence:");
+        persistenceLabel.setFont(persistenceLabel.getFont().deriveFont(Font.BOLD));
+        addFullRow(panel, row++, persistenceLabel);
+        
+        mlPersistenceEnabledBox = new JCheckBox("Enable Model Persistence");
+        addFullRow(panel, row++, mlPersistenceEnabledBox);
+        
+        mlSaveBestModelBox = new JCheckBox("Save Best Model After Training");
+        addFullRow(panel, row++, mlSaveBestModelBox);
+        
+        mlCustomModelNameField = new JTextField(20);
+        addRow(panel, row++, "Custom Model Name (optional)", mlCustomModelNameField);
+        
+        // Note: Best Model Selection Metric is now fixed to CV Mean F1
         
         return panel;
     }
@@ -702,7 +726,13 @@ public class AITechniquePanel extends JPanel {
                 }
 
                 List<String> command = new ArrayList<>();
-                command.add("python");
+                // Use venv Python interpreter if available
+                Path venvPython = Paths.get("venv/Scripts/python.exe").toAbsolutePath();
+                if (Files.exists(venvPython)) {
+                    command.add(venvPython.toString());
+                } else {
+                    command.add("python");
+                }
                 command.add(scriptPath.toString());
                 if (configPathObj != null) {
                     command.add(configPathObj.toString());
@@ -990,6 +1020,13 @@ public class AITechniquePanel extends JPanel {
         mlCnnKernelSpinner.setValue(cnn.optInt("conv_kernel_size", 5));
         mlCnnDenseUnitsSpinner.setValue(cnn.optInt("dense_units", 128));
         mlCnnDropoutSpinner.setValue(cnn.optDouble("dropout", 0.5));
+        
+        // Load model persistence settings
+        JSONObject persistence = ensureObject(multiLabelConfig, "model_persistence");
+        mlPersistenceEnabledBox.setSelected(persistence.optBoolean("enabled", true));
+        mlSaveBestModelBox.setSelected(persistence.optBoolean("save_best_model", true));
+        mlCustomModelNameField.setText(persistence.optString("custom_model_name", ""));
+        // selection_metric is now fixed to CV Mean F1
     }
 
     private void applyMultiClassValues() {
@@ -1152,6 +1189,18 @@ public class AITechniquePanel extends JPanel {
         cnn.put("conv_kernel_size", getInt(mlCnnKernelSpinner));
         cnn.put("dense_units", getInt(mlCnnDenseUnitsSpinner));
         cnn.put("dropout", getDouble(mlCnnDropoutSpinner));
+        
+        // Save model persistence settings
+        JSONObject persistence = ensureObject(multiLabelConfig, "model_persistence");
+        persistence.put("enabled", mlPersistenceEnabledBox.isSelected());
+        persistence.put("save_best_model", mlSaveBestModelBox.isSelected());
+        String customName = mlCustomModelNameField.getText().trim();
+        if (customName.isEmpty()) {
+            persistence.put("custom_model_name", JSONObject.NULL);
+        } else {
+            persistence.put("custom_model_name", customName);
+        }
+        // selection_metric is now fixed to CV Mean F1 (not configurable)
     }
 
     private void persistMultiClassValues() {

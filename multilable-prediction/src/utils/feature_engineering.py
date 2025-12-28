@@ -73,7 +73,7 @@ def prepare_data(
     print(f"\nSelected top {top_k} features based on Chi-Square scores:")
     print(selected_features[:20])
 
-    return X_train_selected, X_test_selected, selected_features, chi2_scores_max, vector
+    return X_train_selected, X_test_selected, selected_features, chi2_scores_max, vector, selected_indices
 
 
 def prepare_data_no_selection(

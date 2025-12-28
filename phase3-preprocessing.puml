@@ -1,0 +1,57 @@
+@startuml Phase3_Preprocessing
+
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam shadowing false
+
+skinparam activity {
+  BackgroundColor #FCE4D6
+  BorderColor #34495E
+  FontColor #2C3E50
+  ArrowColor #34495E
+  ArrowThickness 2
+}
+
+title Phase 3: Data Preprocessing
+
+start
+
+:Extract Records;
+note right
+  JOIN: ISSUE + LABEL
+  + COMMENTS + CODE
+end note
+
+fork
+  :Clean Text;
+  note right
+    Remove HTML/URLs
+    Normalize whitespace
+  end note
+fork again
+  :Text Normalization;
+  note right
+    Lowercase
+    Remove stopwords
+    Lemmatization
+  end note
+fork again
+  :Process Code Snippets;
+  note right
+    Extract code blocks
+    Filter logs
+  end note
+end fork
+
+:Aggregate Data;
+note right
+  Combine: Title + Description
+  + Comments + Code
+end note
+
+:Generate Summary;
+
+stop
+
+@enduml

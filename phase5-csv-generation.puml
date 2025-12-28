@@ -1,0 +1,47 @@
+@startuml Phase5_CSV_Generation
+
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam shadowing false
+
+skinparam activity {
+  BackgroundColor #E8DAEF
+  BorderColor #34495E
+  FontColor #2C3E50
+  ArrowColor #34495E
+  ArrowThickness 2
+}
+
+title Phase 5: CSV Generation
+
+start
+
+:Query Valid Records;
+
+:Build CSV Models;
+note right
+  **Multilabel:**
+  report, type_blocker,
+  type_bug, type_doc,
+  type_enhancement
+  
+  **Multiclass:**
+  report, target_module
+end note
+
+:Encode Labels;
+note right
+  Multilabel: Binary (0/1)
+  Multiclass: Single label
+end note
+
+:Export to CSV;
+note right
+  • multilabel/data/dataset.csv
+  • multiclass/data/dataset.csv
+end note
+
+stop
+
+@enduml

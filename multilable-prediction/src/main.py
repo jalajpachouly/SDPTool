@@ -48,6 +48,7 @@ from utils.evaluation import (
     evaluate_classifier,
     evaluate_deep_learning_model
 )
+from utils.model_persistence import ModelPersistence
 from utils.visualization import (
     visualize_word_cloud,
     visualize_description_length,
@@ -133,7 +134,7 @@ def load_ui_config(config_path='configs/ui_config.json'):
         return None
     
     try:
-        with open(config_file, 'r') as f:
+        with open(config_file, 'r', encoding='utf-8') as f:
             config = json.load(f)
         print(f"[OK] Loaded UI configuration from: {config_path}")
         return config
@@ -296,6 +297,144 @@ def analyze_misclassifications(y_test, y_pred, label_names, model_name):
     print("=" * 80)
 
 
+def save_best_model_from_results(
+    combined_results,
+    trained_models,
+    vectorizer,
+    feature_selector,
+    tokenizer_dict,
+    ui_config,
+    cv_results=None
+):
+    """
+    Identify and save the best performing model from training results.
+    Uses CV Mean F1 as selection criterion (same as HTML report).
+    
+    Args:
+        combined_results: List of result dictionaries from all models (test results)
+        trained_models: Dictionary mapping model names to trained model objects
+        vectorizer: TfidfVectorizer used
+        feature_selector: Chi-square selector (if used)
+        tokenizer_dict: Dictionary mapping model names to tokenizers (for DL models)
+        ui_config: UI configuration dictionary
+        cv_results: DataFrame with CV results (Model, Recall, F1 columns)
+    """
+    if not combined_results:
+        print("[INFO] No models to save (no results available)")
+        return
+    
+    # Get model persistence configuration
+    model_persistence_config = ui_config.get('model_persistence', {})
+    persistence_enabled = model_persistence_config.get('enabled', True)
+    save_best = model_persistence_config.get('save_best_model', True)
+    
+    if not persistence_enabled or not save_best:
+        print("[INFO] Model persistence is disabled in configuration")
+        return
+    
+    custom_name = model_persistence_config.get('custom_model_name', None)
+    
+    print(f"\n{'='*80}")
+    print(f"IDENTIFYING BEST MODEL FOR PERSISTENCE")
+    print(f"{'='*80}")
+    print(f"Selection criterion: CV Mean F1 (Fixed) - Same as HTML Report")
+    
+    # Use CV results if available (same as HTML report logic)
+    if cv_results is not None and not cv_results.empty:
+        print("\nUsing Cross-Validation F1 scores (same as HTML report):")
+        print(cv_results.to_string(index=False))
+        
+        # Find model with highest CV Mean F1
+        best_idx = cv_results['F1'].idxmax()
+        best_result = cv_results.loc[best_idx]
+        model_name = best_result['Model']
+        best_f1 = best_result['F1']
+        
+        print(f"\nBest model: {model_name}")
+        print(f"Best CV Mean F1: {best_f1:.4f}")
+    else:
+        print("\n[WARNING] CV results not available, falling back to test set Macro F1")
+        # Fallback: aggregate test results
+        df_results = pd.DataFrame(combined_results)
+        
+        # Group by Model and calculate mean metrics
+        model_metrics = df_results.groupby('Model').agg({
+            'Recall': 'mean',
+            'F1': 'mean',
+            'Hamming Loss': 'first'
+        }).reset_index()
+        
+        model_metrics.columns = ['Model', 'Macro Recall', 'Macro F1', 'Hamming Loss']
+        
+        print("\nModel Performance Summary (Test Set):")
+        print(model_metrics.to_string(index=False))
+        
+        # Use Macro F1 from test set
+        best_idx = model_metrics['Macro F1'].idxmax()
+        best_result = model_metrics.loc[best_idx]
+        model_name = best_result['Model']
+        best_f1 = best_result['Macro F1']
+        
+        print(f"\nBest model: {model_name}")
+        print(f"Best Test Macro F1: {best_f1:.4f}")
+    
+    # Get the trained model object
+    if model_name not in trained_models:
+        print(f"[WARNING] Model '{model_name}' not found in trained models dictionary")
+        print(f"Available models: {list(trained_models.keys())}")
+        return
+    
+    model = trained_models[model_name]
+    
+    # Determine model type (handle names with data_type suffix like "CNN (Balanced)")
+    base_model_name = model_name.split(' (')[0]  # Extract base name before suffix
+    model_type = 'deep_learning' if base_model_name in ['MLP', 'CNN'] else 'traditional_ml'
+    
+    # Get tokenizer if deep learning model
+    tokenizer = tokenizer_dict.get(model_name, None)
+    
+    # Prepare metrics dictionary (column names differ between CV and test results)
+    if cv_results is not None and not cv_results.empty:
+        # CV results have columns: Model, Recall, F1
+        metrics = {
+            'cv_mean_f1': float(best_f1),  # Used for selection
+            'macro_f1': float(best_f1),
+            'macro_recall': float(best_result['Recall']),
+            'hamming_loss': 0.0  # Not available in CV results
+        }
+    else:
+        # Test results have columns: Model, Macro Recall, Macro F1, Hamming Loss
+        metrics = {
+            'cv_mean_f1': float(best_f1),  # Used for selection
+            'macro_f1': float(best_result['Macro F1']),
+            'macro_recall': float(best_result['Macro Recall']),
+            'hamming_loss': float(best_result['Hamming Loss'])
+        }
+    
+    # Save the model
+    persistence = ModelPersistence()
+    
+    try:
+        model_dir = persistence.save_best_model(
+            model=model,
+            model_name=model_name,
+            model_type=model_type,
+            metrics=metrics,
+            vectorizer=vectorizer,
+            feature_selector=feature_selector,
+            tokenizer=tokenizer,
+            config=ui_config,
+            custom_name=custom_name
+        )
+        
+        print(f"[SUCCESS] Best model saved successfully to: {model_dir}")
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to save model: {e}")
+        import traceback
+        traceback.print_exc()
+
+
 def main(data_type='Unbalanced'):
     """
     Main function to execute data processing, model training, evaluation, and visualization.
@@ -417,7 +556,7 @@ def main(data_type='Unbalanced'):
 
     # Prepare Data with Vocabulary
     try:
-        X_train_tfidf, X_test_tfidf, selected_features, chi2_scores_max, vector = prepare_data(
+        X_train_tfidf, X_test_tfidf, selected_features, chi2_scores_max, vector, selected_indices = prepare_data(
             X_train_df, X_test_df, y_train_df, top_k=top_k, vocabulary=wordcloud_vocab
         )
     except Exception as e:
@@ -441,6 +580,8 @@ def main(data_type='Unbalanced'):
     # =============================================================================
     
     traditional_ml_results = []
+    trained_models = {}  # Track all trained models for persistence
+    tokenizer_dict = {}  # Track tokenizers for deep learning models
     classifiers_to_run = []
     
     # Define Classifiers based on feature flags
@@ -469,6 +610,7 @@ def main(data_type='Unbalanced'):
         print(f"[INFO] RandomForest enabled (n_estimators={rf_n_estimators})")
 
     # Cross-Validation for Traditional Models (feature-flagged)
+    cv_results_df = None  # Store CV results for model selection
     if run_cross_validation and classifiers_to_run:
         print("\n" + "="*80)
         print("CROSS-VALIDATION FOR TRADITIONAL ML MODELS")
@@ -478,9 +620,9 @@ def main(data_type='Unbalanced'):
             print(f"\n===== Cross-Validating {model_name} =====")
             cv_scores = cross_validation_score_multilabel(clf, X_train_tfidf, y_train_np)
             meth_cv.append({'Model': model_name, 'Recall': cv_scores['Recall'], 'F1': cv_scores['F1']})
-        meth_cv = pd.DataFrame(meth_cv)
+        cv_results_df = pd.DataFrame(meth_cv)
         print("\nCross-validation results:")
-        print(meth_cv[['Model', 'Recall', 'F1']])
+        print(cv_results_df[['Model', 'Recall', 'F1']])
 
     # Evaluate Classifiers on Test Set
     if classifiers_to_run:
@@ -493,6 +635,8 @@ def main(data_type='Unbalanced'):
                                         enable_error_analysis=enable_error_analysis, 
                                         analyze_misclassifications_func=analyze_misclassifications)
             traditional_ml_results.extend(results)
+            # Store trained model for persistence
+            trained_models[model_name] = clf
 
     # =============================================================================
     # MLP DEEP LEARNING MODEL (Feature-Flagged)
@@ -517,6 +661,13 @@ def main(data_type='Unbalanced'):
             print(f"\nMLP Cross-validation results:")
             print(f"Recall: {deep_learning_cv_scores['Recall']:.4f}")
             print(f"F1-score: {deep_learning_cv_scores['F1']:.4f}")
+            
+            # Add MLP CV results to cv_results_df
+            mlp_cv_row = pd.DataFrame([{'Model': 'MLP', 'Recall': deep_learning_cv_scores['Recall'], 'F1': deep_learning_cv_scores['F1']}])
+            if cv_results_df is not None:
+                cv_results_df = pd.concat([cv_results_df, mlp_cv_row], ignore_index=True)
+            else:
+                cv_results_df = mlp_cv_row
 
         # Train MLP Model on Entire Training Set
         print("\n===== Training MLP Model on Entire Training Set =====")
@@ -537,6 +688,9 @@ def main(data_type='Unbalanced'):
         mlp_results = evaluate_deep_learning_model(deep_learning_model, X_test_tfidf, y_test_np, 'MLP', label_names, 
                                                    enable_error_analysis=enable_error_analysis,
                                                    analyze_misclassifications_func=analyze_misclassifications)
+        # Store trained model for persistence
+        trained_models['MLP'] = deep_learning_model
+        tokenizer_dict['MLP'] = None  # MLP doesn't use tokenizer
     else:
         print("\n[INFO] MLP model disabled by feature flag")
 
@@ -571,6 +725,13 @@ def main(data_type='Unbalanced'):
             print(f"\nCNN Cross-validation results:")
             print(f"Recall: {cnn_cv_scores['Recall']:.4f}")
             print(f"F1-score: {cnn_cv_scores['F1']:.4f}")
+            
+            # Add CNN CV results to cv_results_df
+            cnn_cv_row = pd.DataFrame([{'Model': 'CNN', 'Recall': cnn_cv_scores['Recall'], 'F1': cnn_cv_scores['F1']}])
+            if cv_results_df is not None:
+                cv_results_df = pd.concat([cv_results_df, cnn_cv_row], ignore_index=True)
+            else:
+                cv_results_df = cnn_cv_row
 
         # Train CNN Model on Entire Training Set
         print("\n===== Training CNN Model on Entire Training Set =====")
@@ -589,6 +750,9 @@ def main(data_type='Unbalanced'):
         cnn_results = evaluate_deep_learning_model(cnn_model, X_test_dl, y_test_np, 'CNN', label_names, 
                                                    enable_error_analysis=enable_error_analysis,
                                                    analyze_misclassifications_func=analyze_misclassifications)
+        # Store trained model and tokenizer for persistence
+        trained_models['CNN'] = cnn_model
+        tokenizer_dict['CNN'] = tokenizer
     else:
         print("\n[INFO] CNN model disabled by feature flag")
 
@@ -611,7 +775,20 @@ def main(data_type='Unbalanced'):
         sns.set(style="whitegrid")
         visualize_f1_scores(df_results, data_type)
 
-    print("\nAll processes completed successfully.")
+    # =============================================================================
+    # RETURN RESULTS FOR CROSS-RUN COMPARISON
+    # =============================================================================
+    
+    # Return results for potential cross-run model selection
+    return {
+        'combined_results': combined_results,
+        'cv_results': cv_results_df,
+        'trained_models': trained_models,
+        'vectorizer': vector,
+        'feature_selector': selected_indices,
+        'tokenizer_dict': tokenizer_dict,
+        'data_type': data_type
+    }
 
 
 if __name__ == "__main__":
@@ -623,6 +800,55 @@ if __name__ == "__main__":
     ui_config = load_ui_config()
     experiment_name = ui_config.get('experiment_name', 'default_run')
     
+    # Check if prediction mode is enabled
+    prediction_config = ui_config.get('prediction', {})
+    prediction_enabled = prediction_config.get('enabled', False)
+    
+    if prediction_enabled:
+        # Run prediction mode using existing saved model
+        print("\n" + "="*80)
+        print("PREDICTION MODE")
+        print("="*80)
+        
+        run_id = prediction_config.get('run_id')
+        mode = prediction_config.get('mode', 'interactive')
+        input_file = prediction_config.get('input_file')
+        row_numbers = prediction_config.get('row_numbers')
+        
+        if not run_id:
+            print("[ERROR] Prediction mode enabled but 'run_id' not specified in config")
+            print("Please set 'prediction.run_id' in your config file")
+            sys.exit(1)
+        
+        print(f"Loading model: {run_id}")
+        print(f"Prediction mode: {mode}")
+        
+        # Import predictor
+        from predict_with_model import ModelPredictor
+        
+        try:
+            predictor = ModelPredictor(run_id)
+            
+            if mode == 'interactive':
+                predictor.run_interactive_mode()
+            elif mode == 'csv' and input_file:
+                predictor.predict_from_csv(input_file)
+            elif mode == 'rows' and row_numbers:
+                predictor.predict_from_rows(row_numbers)
+            else:
+                print(f"[ERROR] Invalid prediction mode or missing parameters")
+                print(f"Mode: {mode}, Input file: {input_file}, Rows: {row_numbers}")
+                sys.exit(1)
+                
+        except Exception as e:
+            print(f"[ERROR] Prediction failed: {e}")
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
+        
+        sys.exit(0)  # Exit after prediction
+    
+    # Training mode (existing code)
     # Setup output directory with new structure: output/reports/<Run_ID>
     base_output_dir = Path(__file__).parent.parent / 'output' / 'reports' / experiment_name
     base_output_dir.mkdir(parents=True, exist_ok=True)
@@ -635,6 +861,8 @@ if __name__ == "__main__":
     class TeeOutput:
         def __init__(self, *files):
             self.files = files
+            # Add encoding attribute for TensorFlow/Keras compatibility
+            self.encoding = getattr(files[0], 'encoding', 'utf-8')
         def write(self, text):
             for f in self.files:
                 f.write(text)
@@ -663,21 +891,80 @@ if __name__ == "__main__":
         print(f"Run Balanced Data: {run_balanced}")
         print("="*80)
         
+        # Collect results from all runs
+        all_run_results = []
+        
         if run_unbalanced:
             print("\nProcessing with Unbalanced Data.")
-            main(data_type='Unbalanced')
+            unbalanced_results = main(data_type='Unbalanced')
+            if unbalanced_results:
+                all_run_results.append(unbalanced_results)
         else:
             print("\n[INFO] Unbalanced data processing disabled by feature flag")
         
         if run_balanced:
             print("\n---------------------------------------------------------")
             print("\nProcessing with Balanced Data.")
-            main(data_type='Balanced')
+            balanced_results = main(data_type='Balanced')
+            if balanced_results:
+                all_run_results.append(balanced_results)
         else:
             print("\n[INFO] Balanced data processing disabled by feature flag")
         
         if not run_unbalanced and not run_balanced:
             print("\n[WARNING] Both data types are disabled. No processing performed.")
+        
+        # =============================================================================
+        # SAVE ONLY ONE BEST MODEL ACROSS ALL RUNS
+        # =============================================================================
+        
+        if all_run_results:
+            print("\n" + "="*80)
+            print("SELECTING BEST MODEL ACROSS ALL RUNS")
+            print("="*80)
+            
+            # Combine all results and CV scores from all runs
+            all_combined_results = []
+            all_cv_results = []
+            all_trained_models = {}
+            vectorizer = None
+            feature_selector = None
+            tokenizer_dict = {}
+            
+            for run_result in all_run_results:
+                all_combined_results.extend(run_result['combined_results'])
+                if run_result['cv_results'] is not None and not run_result['cv_results'].empty:
+                    # Add data_type suffix to model names for identification
+                    cv_df = run_result['cv_results'].copy()
+                    cv_df['Model'] = cv_df['Model'] + f" ({run_result['data_type']})"
+                    all_cv_results.append(cv_df)
+                
+                # Update trained models with data_type suffix
+                for model_name, model_obj in run_result['trained_models'].items():
+                    all_trained_models[f"{model_name} ({run_result['data_type']})"] = model_obj
+                
+                # Use vectorizer and feature_selector from any run (they're the same)
+                if vectorizer is None:
+                    vectorizer = run_result['vectorizer']
+                    feature_selector = run_result['feature_selector']
+                
+                # Merge tokenizer dicts
+                for model_name, tokenizer in run_result['tokenizer_dict'].items():
+                    tokenizer_dict[f"{model_name} ({run_result['data_type']})"] = tokenizer
+            
+            # Combine all CV results
+            combined_cv_results = pd.concat(all_cv_results, ignore_index=True) if all_cv_results else None
+            
+            # Save the single best model
+            save_best_model_from_results(
+                combined_results=all_combined_results,
+                cv_results=combined_cv_results,
+                trained_models=all_trained_models,
+                vectorizer=vectorizer,
+                feature_selector=feature_selector,
+                tokenizer_dict=tokenizer_dict,
+                ui_config=ui_config
+            )
         
         print("\n" + "="*80)
         print("PIPELINE COMPLETED")
@@ -723,6 +1010,44 @@ if __name__ == "__main__":
         print(f"[INFO] Run marked as completed: {completion_flag}")
     except Exception as e:
         print(f"[WARNING] Could not create completion flag: {e}")
+    
+    # Create metadata.json for UI display
+    try:
+        # Collect enabled models
+        enabled_models = []
+        if get_config_value(ui_config, 'models.traditional_ml.multinomial_nb.enabled', DEFAULT_MULTINOMIAL_NB_ENABLED):
+            enabled_models.append('MultinomialNB')
+        if get_config_value(ui_config, 'models.traditional_ml.logistic_regression.enabled', DEFAULT_LOGISTIC_REGRESSION_ENABLED):
+            enabled_models.append('LogisticRegression')
+        if get_config_value(ui_config, 'models.traditional_ml.random_forest.enabled', DEFAULT_RANDOM_FOREST_ENABLED):
+            enabled_models.append('RandomForest')
+        if get_config_value(ui_config, 'models.deep_learning.mlp.enabled', DEFAULT_MLP_ENABLED):
+            enabled_models.append('MLP')
+        if get_config_value(ui_config, 'models.deep_learning.cnn.enabled', DEFAULT_CNN_ENABLED):
+            enabled_models.append('CNN')
+        
+        # Collect data types
+        data_types = []
+        if get_config_value(ui_config, 'data.run_unbalanced', DEFAULT_RUN_UNBALANCED):
+            data_types.append('Unbalanced')
+        if get_config_value(ui_config, 'data.run_balanced', DEFAULT_RUN_BALANCED):
+            data_types.append('Balanced')
+        
+        metadata = {
+            'run_name': experiment_name,
+            'timestamp': training_start_time,
+            'status': 'Completed',
+            'models': enabled_models,
+            'data_types': data_types,
+            'problem_type': 'multi_label'
+        }
+        
+        metadata_path = base_output_dir / 'metadata.json'
+        with open(metadata_path, 'w', encoding='utf-8') as f:
+            json.dump(metadata, f, indent=2, ensure_ascii=False)
+        print(f"[INFO] Metadata saved: {metadata_path}")
+    except Exception as e:
+        print(f"[WARNING] Could not create metadata file: {e}")
 
 
 # =============================================================================

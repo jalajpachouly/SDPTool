@@ -95,6 +95,15 @@ public class Home extends Component {
 
 
     public static void main(String[] args) {
+        // Set UTF-8 encoding for console output (for special characters like ★, ✓, ✗)
+        try {
+            System.setOut(new java.io.PrintStream(System.out, true, java.nio.charset.StandardCharsets.UTF_8));
+            System.setErr(new java.io.PrintStream(System.err, true, java.nio.charset.StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            // Fallback if UTF-8 setup fails
+            System.err.println("Warning: Could not set UTF-8 encoding for console");
+        }
+        
         // Initialize shared configuration manager FIRST
         ConfigManager.initialize();
         
